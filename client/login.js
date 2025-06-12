@@ -1,4 +1,22 @@
-import socket from "./socket.js";
+const socket = io();
+
+if (localStorage.getItem("player_id") !== null && localStorage.getItem("lobby_id") !== null) {
+    // try to log back in
+    socket.emit("logIn", localStorage.getItem("player_id"));
+}
+
+socket.on("reset", () => {
+    localStorage.clear();
+    window.location.href = "/index.html";
+});
+
+socket.on("loggedIn", (idle) => {
+    if (idle) {
+        window.location.href = "/lobby.html";
+    } else {
+        window.location.href = "/game.html";
+    }
+})
 
 // player info
 const playerNameInput = document.getElementById("playerName");
@@ -40,10 +58,11 @@ joinNormalButton.addEventListener("click", () => {
 });
 
 
-socket.on("joinLobby", (player_id, lobby_id) => {
+socket.on("joinLobby", (player_id, lobby_id, isHost) => {
     console.log(`${player_id} joind ${lobby_id}`);
     localStorage.setItem("player_id", player_id);
     localStorage.setItem("lobby_id", lobby_id);
+    localStorage.setItem("host", isHost)
     // Weiterleitung zur Lobby
     window.location.href = "/lobby.html";
 });

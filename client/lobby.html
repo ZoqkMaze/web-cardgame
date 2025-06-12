@@ -8,46 +8,16 @@
 </head>
 <body>
 
-<h1>Lobby</h1>
+<h1 id="lobbyName">Lobby</h1>
 
 <div class="container">
 
   <ul class="players-list" id="playersList">
-    <!-- Beispiel: Spieler -->
-    <li>
-      <div>
-        <span class="player-name">Max</span> <span class="host-badge">Host</span>
-      </div>
-      <div class="slot-controls">
-        <span class="slot-type">Spieler</span>
-        <button class="kick-btn" title="Spieler kicken">Kick</button>
-      </div>
-    </li>
-    <li>
-      <div><span class="player-name">Lisa</span></div>
-      <div class="slot-controls">
-        <span class="slot-type">Spieler</span>
-        <!-- Keine Kick-Buttons für sich selbst oder andere Nicht-Hosts, nur Beispiel -->
-      </div>
-    </li>
-    <li>
-      <div><span class="player-name">Freier Platz</span></div>
-      <div class="slot-controls">
-        <span class="slot-type">Leer</span>
-        <button class="kick-btn" title="Platz löschen">✖</button>
-        <button class="kick-btn" title="Platz zu Computer ändern">🤖</button>
-      </div>
-    </li>
-    <li>
-      <div><span class="player-name">Computer 1</span></div>
-      <div class="slot-controls">
-        <span class="slot-type">Computer</span>
-        <button class="kick-btn" title="Computer entfernen">✖</button>
-      </div>
-    </li>
+    <!-- Player in Lobby einfügen-->
   </ul>
 
-  <div class="controls">
+  <!-- controls nur, wenn host -->
+  <div id="hostOptions" class="controls">
     <button id="addSlotBtn">Platz hinzufügen</button>
     <button id="startGameBtn">Spiel starten</button>
   </div>
@@ -56,7 +26,22 @@
 </div>
 
 <script src="/socket.io/socket.io.js"></script>
-<script type="module" src="socket.js"></script>
+<script type="module" src="lobby.js"></script>
 
 </body>
 </html>
+
+<!--
+
+<li>
+  <div>
+    <span class="player_name">player_name</span> WENN HOST: <span class="host-badge">Host</span>
+  </div>
+  <div class="slot-controls">
+    <span class="slot-type">Spieler</span>
+    NUR HOST (auch bei Computer): <button class="kick-btn" title="Spieler kicken">Kick</button>
+    NUR HOST WENN LEER: <button class="kick-btn" title="Platz löschen">✖</button>
+    NUR HOST WENN LEER: <button class="kick-btn" title="Platz zu Computer ändern">🤖</button>
+  </div>
+</li>
+-->

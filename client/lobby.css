@@ -114,3 +114,7 @@
   button#leaveLobbyBtn:hover {
     background: #1976d2;
   }
+  .disabled-container {
+  pointer-events: none;
+  opacity: 0.5;
+}
