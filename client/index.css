@@ -1,0 +1,70 @@
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
+  body {
+    margin: 0; 
+    background: #121212;
+    font-family: 'Inter', sans-serif;
+    color: #eee;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 2rem;
+    min-height: 100vh;
+  }
+  h1 {
+    font-weight: 600;
+    margin-bottom: 2rem;
+  }
+  .container {
+    background: #1e1e1e;
+    border-radius: 12px;
+    padding: 2rem;
+    width: 320px;
+    box-shadow: 0 0 15px rgba(0,0,0,0.5);
+  }
+  label {
+    display: block;
+    margin-top: 1rem;
+    margin-bottom: 0.3rem;
+    font-weight: 600;
+    font-size: 0.9rem;
+  }
+  input[type="text"], input[type="number"], select {
+    width: 93%;
+    padding: 0.5rem 0.7rem;
+    border-radius: 6px;
+    border: none;
+    background: #2a2a2a;
+    color: #eee;
+    font-size: 1rem;
+  }
+  input[type="checkbox"] {
+    margin-right: 0.5rem;
+    transform: scale(1.2);
+  }
+  button {
+    margin-top: 1.5rem;
+    width: 100%;
+    padding: 0.75rem;
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: #121212;
+    background: #4caf50;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.3s ease;
+  }
+  button:hover {
+    background: #45a045;
+  }
+  .section {
+    margin-bottom: 2rem;
+  }
+  .divider {
+    height: 1px;
+    background: #333;
+    margin: 2rem 0;
+  }
+  small {
+    color: #999;
+  }

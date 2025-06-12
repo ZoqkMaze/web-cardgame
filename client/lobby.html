@@ -4,124 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Lobby</title>
-<style>
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
-  body {
-    margin: 0; 
-    background: #121212;
-    font-family: 'Inter', sans-serif;
-    color: #eee;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 2rem;
-    min-height: 100vh;
-  }
-  h1 {
-    font-weight: 600;
-    margin-bottom: 1.5rem;
-  }
-  .container {
-    background: #1e1e1e;
-    border-radius: 12px;
-    padding: 2rem;
-    width: 360px;
-    box-shadow: 0 0 15px rgba(0,0,0,0.5);
-    display: flex;
-    flex-direction: column;
-  }
-  .players-list {
-    list-style: none;
-    padding: 0;
-    margin: 0 0 1.5rem 0;
-    max-height: 300px;
-    overflow-y: auto;
-    border: 1px solid #333;
-    border-radius: 8px;
-    background: #2a2a2a;
-  }
-  .players-list li {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0.5rem 1rem;
-    border-bottom: 1px solid #333;
-    font-size: 1rem;
-  }
-  .players-list li:last-child {
-    border-bottom: none;
-  }
-  .player-name {
-    font-weight: 600;
-  }
-  .host-badge {
-    background: #4caf50;
-    color: #121212;
-    font-weight: 700;
-    font-size: 0.75rem;
-    padding: 0.15rem 0.5rem;
-    border-radius: 12px;
-    margin-left: 0.5rem;
-  }
-  .slot-controls button, 
-  .kick-btn {
-    background: #f44336;
-    border: none;
-    color: white;
-    font-weight: 700;
-    border-radius: 6px;
-    cursor: pointer;
-    padding: 0.3rem 0.6rem;
-    font-size: 0.8rem;
-    margin-left: 0.4rem;
-    transition: background 0.3s ease;
-  }
-  .slot-controls button:hover, 
-  .kick-btn:hover {
-    background: #d32f2f;
-  }
-  .slot-controls {
-    display: flex;
-    align-items: center;
-  }
-  .slot-type {
-    font-size: 0.85rem;
-    color: #bbb;
-    margin-right: 0.5rem;
-    font-style: italic;
-  }
-  .controls {
-    display: flex;
-    justify-content: space-between;
-    margin-top: 1rem;
-  }
-  button#addSlotBtn, button#startGameBtn {
-    background: #4caf50;
-    border: none;
-    color: #121212;
-    font-weight: 700;
-    padding: 0.75rem 1rem;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: background 0.3s ease;
-  }
-  button#addSlotBtn:hover, button#startGameBtn:hover {
-    background: #45a045;
-  }
-  button#leaveLobbyBtn {
-    background: #2196f3;
-    border: none;
-    color: white;
-    font-weight: 700;
-    padding: 0.75rem 1rem;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: background 0.3s ease;
-  }
-  button#leaveLobbyBtn:hover {
-    background: #1976d2;
-  }
-</style>
+<link rel="stylesheet" href="lobby.css">
 </head>
 <body>
 
@@ -171,6 +54,9 @@
 
   <button id="leaveLobbyBtn" style="margin-top: 1.5rem;">Lobby verlassen</button>
 </div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script type="module" src="socket.js"></script>
 
 </body>
 </html>
