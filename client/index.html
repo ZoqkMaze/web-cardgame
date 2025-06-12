@@ -40,7 +40,7 @@
 
     <button id="createLobbyBtn">Lobby erstellen</button>
 
-    <p id="createLobbyErrors"></p>
+    <p id="createLobbyErrors" class="error"></p>
   </div>
 
   <div class="divider"></div>
@@ -50,10 +50,12 @@
     <h2>Lobby beitreten</h2>
 
     <button id="joinRandomLobbyBtn" style="background:#2196f3; margin-bottom:1rem;">Zufälliger Lobby beitreten</button>
+    <p id="randomLobbyErrors" class="error"></p>
 
     <label for="lobbyId">Lobby-ID (für spezifizierte Lobby)</label>
-    <input type="text" id="lobbyId" placeholder="Lobby-ID eingeben" maxlength="10" />
+    <input type="text" id="lobbyId" placeholder="Lobby-ID eingeben" />
     <button id="joinLobbyByIdBtn" style="background:#f44336;">Lobby beitreten</button>
+    <p id="joinLobbyErrors" class="error"></p>
   </div>
 </div>
 
