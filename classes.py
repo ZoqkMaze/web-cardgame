@@ -1,12 +1,41 @@
 
 from abc import ABC, abstractmethod
 import random
+from enum import Enum
+
+
+class GameState(Enum):
+    DEALING = "dealing"
+    SWAPING = "swaping"
+    PLAYING = "playing"
+    EVALUATING = "evaluating"
+    def next(self):
+        transition = {
+            GameState.DEALING: GameState.SWAPING,
+            GameState.SWAPING: GameState.PLAYING,
+            GameState.PLAYING: GameState.EVALUATING,
+            GameState.EVALUATING: GameState.DEALING,
+        }
+        return transition[self]
+
+
+class Color(Enum):
+    RED = "red"
+    BLUE = "blue"
+    GREEN = "green"
+    YELLOW = "yellow"
+    BLANCK = "blanck"
+
+    def true_colors():
+        return [Color.RED, Color.BLUE, Color.GREEN, Color.YELLOW]
 
 
 class Game:
     # Zahlen 1 bis 13 in den Farben rot, blau, grün und gelb
     # zusätzlich 4 Narren
     # statt ABC einer logger klasse übergeben, die aufgerufen wird, wenn infos übermittelt werden
+
+    # todo: change constants to enum
     RED = "red"
     BLUE = "blue"
     GREEN = "green"
@@ -39,33 +68,24 @@ class Game:
     MIN_PLAYER = 3  # inclusiv
     MAX_PLAYER = 6  # inclusiv
 
-    def __init__(self, players):
-        self.__players: list[Player] = players  # [Player(self) for _ in range(self.__player_count)]
-        self.__player_count = len(self.__players)
-        if not Game.MIN_PLAYER <= self.__player_count <= Game.MAX_PLAYER: raise ValueError("wrong player number")
+
+    def __init__(self, player_count):
+        self.__player_count = player_count
+        if not Game.MIN_PLAYER <= player_count <= Game.MAX_PLAYER: raise ValueError("wrong player number")
         self.__cards = list(Card(c, r) for c in Game.TRUE_COLORS for r in range(Game.MIN_RANK+1, Game.MAX_RANK)) + list(Card(Game.BLANCK, Game.MIN_RANK) for _ in range(len(Game.TRUE_COLORS)))
         self.__current_stitch: Stitch = Stitch(self.__player_count)
-        # remove players and player_index?
-        self.__player_index = 0
         self.__round = 0
-        self.__total_stitches = len(self.__cards) // self.__player_count
+        # self.__total_stitches = len(self.__cards) // self.__player_count  # todo: remove as well
+        self.__state = GameState.DEALING
     
-    def feedback_played_card(self, card):
-        # outdated method - only for cli
-        print(f"played card {card}")
-
-    def feedback_played_stitch(self, player, stitch):
-        # outdated method - only for cli
-        try:
-            print(f"player {player.name} won!")
-        except AttributeError:
-            print(f"Player {self.__players.index(player)+1} won!")
+    def next_state(self):
+        self.__state = self.__state.next()
 
     def game_status(self):
         return {
             "typ": "game",
             "player_count": self.__player_count,
-            "active_player": self.__player_index,
+            "status": self.__state,
             "round": self.__round,
         }
 
@@ -76,61 +96,36 @@ class Game:
     def get_player_count(self):
         return self.__player_count
     
-    def start_game(self):
-        if not self.__round:
-            self.__round = 1
-            return 0
-        return 1
-    
-    def play_card_new(self, card):
+    def play_card(self, card):
+        # caller-todo: remove card from player | check card | check player
+        """
+        stitch_color = self.__current_stitch.get_color()
+        zugzwang = stitch_color in Game.TRUE_COLORS and player.has_color(stitch_color)
+        while zugzwang and not card.get_color() in [stitch_color, Game.BLANCK]:
+        """
 
-        if not self.__round:
-            # game did not start
+        if self.__state is not GameState.PLAYING:
             return 1
         
         # the game does not check for validity -> the player class has to verify!
         if self.__current_stitch.play_card(card):  # stitch is full (or wrong card)
             return 1
-        # todo: remove
-        self.feedback_played_card(card)
 
         # if stitch is full -> nothing happens -> call new_stitch
         return 0
     
     def new_stitch(self):
-        if not self.__current_stitch.is_full():
+        if not self.__current_stitch.is_full():  # includes Game.PLAYING
             return 1
         old_stitch = self.__current_stitch
         self.__current_stitch = Stitch(self.__player_count)
         self.__round += 1
+        """determine winner, next player, give stitch to player"""
         return old_stitch  # kann ausgewertet und dem gewinner gegeben werden
-    
-    def play_card(self):
-        # change: gets called by player -> change game state
-        player = self.__players[self.__player_index]
-        card = player.choose_card()
-        stitch_color = self.__current_stitch.get_color()
-        zugzwang = stitch_color in Game.TRUE_COLORS and player.has_color(stitch_color)
-        while zugzwang and not card.get_color() in [stitch_color, Game.BLANCK]:
-            card = player.choose_card()
-        player.remove_card(card)
-        self.__current_stitch.play_card(card)
-        self.feedback_played_card(card)
-    
-    def play_stitch(self):
-        # remove method -> represented with internal state
-        self.__round += 1
-        for _ in range(self.__player_count):
-            self.play_card()
-            self.__player_index = (self.__player_index + 1) % self.__player_count
-        winner = self.__current_stitch.evaluate()
-        if winner == -1: raise ValueError
-        self.__player_index = (self.__player_index + winner) % self.__player_count
-        self.feedback_played_stitch(self.__players[self.__player_index], self.__current_stitch)
-        self.__players[self.__player_index].get_stitch(self.__current_stitch)
-        self.__current_stitch = Stitch(self.__player_count)
 
-    def deal_cards_new(self):
+    def deal_cards(self):
+        if self.__state is not GameState.DEALING:
+            return 1
         if len(self.__cards)%self.__player_count: raise ValueError("wrong number of players")
         stacks = [[] for _ in range(self.__player_count)]
         card_per_player = len(self.__cards) / self.__player_count
@@ -140,23 +135,22 @@ class Game:
             stacks[open_p[p]].append(c)
             if len(stacks[open_p[p]]) >= card_per_player:
                 open_p.pop(p)
+        self.next_state()
         return stacks
     
-    def deal_cards(self):
-        [p.clear_cards() for p in self.__players]
-        stacks = self.deal_cards_new()
-        for x in range(self.__player_count):
-            self.__players[x].get_cards(stacks[x])
-    
     def swap_cards(self):
-        pass
+        if self.__state is not Game.SWAPING:
+            return 1
+        
+        # todo
+        self.next_state()
+        return 0
     
-    def gameloop(self):
-        # todo remove: no gameloop -> player control game on start
-        self.deal_cards()
-        self.swap_cards()
-        for _ in range(self.__total_stitches):
-            self.play_stitch()
+    def evaluate(self):
+        if self.__state is not Game.EVALUATING:
+            return 1
+        
+        # todo
         spell = max([p.has_spell() for p in self.__players])
         if spell:
             for p in self.__players:
@@ -164,6 +158,8 @@ class Game:
         else:
             for p in self.__players:
                 p.add_game_score(p.get_score())
+
+        self.next_state
 
 
 class Card:
