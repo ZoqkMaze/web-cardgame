@@ -1,8 +1,13 @@
-
-from abc import ABC, abstractmethod
 import random
 from enum import Enum
 
+
+class LobbyState(Enum):
+    JOIN = "join"
+    GAME = "game"
+    IDLE = "idle"
+    CANCEL = "cancel"
+        
 
 class GameState(Enum):
     DEALING = "dealing"
@@ -26,8 +31,21 @@ class Color(Enum):
     YELLOW = "yellow"
     BLANCK = "blanck"
 
-    def true_colors():
-        return [Color.RED, Color.BLUE, Color.GREEN, Color.YELLOW]
+
+class Flag(Enum):
+    RED_FLAG = "double normal points"
+    BLUE_FLAG = "clear all points"
+    YELLOW_FLAG = -5
+    LOW_FLAG = 5
+    HIGH_FLAG = 10
+    NONE_FLAG = "no effect"
+
+
+class Spell(Enum):
+    NO_SPELL = 0
+    LOW_SPELL = 20
+    MEDIUM_SPELL = 25
+    HIGH_SPELL = 30
 
 
 class Game:
@@ -92,17 +110,16 @@ class Game:
     @property
     def cards(self):
         return self.__cards
+    
+    @property
+    def current_color(self):
+        return self.__current_stitch.get_color()
 
     def get_player_count(self):
         return self.__player_count
     
     def play_card(self, card):
         # caller-todo: remove card from player | check card | check player
-        """
-        stitch_color = self.__current_stitch.get_color()
-        zugzwang = stitch_color in Game.TRUE_COLORS and player.has_color(stitch_color)
-        while zugzwang and not card.get_color() in [stitch_color, Game.BLANCK]:
-        """
 
         if self.__state is not GameState.PLAYING:
             return 1
@@ -149,6 +166,8 @@ class Game:
     def evaluate(self):
         if self.__state is not Game.EVALUATING:
             return 1
+        self.next_state()
+        return 0
         
         # todo
         spell = max([p.has_spell() for p in self.__players])
@@ -159,7 +178,6 @@ class Game:
             for p in self.__players:
                 p.add_game_score(p.get_score())
 
-        self.next_state
 
 
 class Card:
@@ -183,20 +201,30 @@ class Card:
     def __repr__(self):
         return f"Card<{self.__color}-{self.__rank}>"
     
+    @property
+    def color(self):
+        return self.__color
+    
+    @property
+    def rank(self):
+        return self.__rank
+    
     def get_color(self):
+        # todo: remove
         return self.__color
     
     def is_color(self, color):
-        return self.__color == color
+        return self.__color is color
     
     def set_color(self, color):
         if self.__changeable:
-            if color in Game.COLORS:
+            if color in Color:
                 self.__color = color
                 return
         return 1  # Fehler
 
     def get_rank(self):
+        # todo: remove
         return self.__rank
     
     def set_rank(self, rank):
@@ -272,27 +300,28 @@ class Stitch:
         return -1
     
 
-class Player(ABC):
-    def __init__(self):
-        self.__cards: list[Card] = []
+class Player:
+    def __init__(self, id):
+        self.__id = id
+        self.__cards: dict[str, Card] = {}
         self.__stitches: list[Stitch] = []
         self.__points = 0  # Punkte über alle Stiche einer Spielrunde
         self.__flags = []
         self.__red_cards = 0
         self.__game_score = 0  # Punkte über alle Spielrunden
+        self.__card_id = 0
+    
+    @property
+    def id(self):
+        return self.__id
     
     @property
     def cards(self):
-        return self.__cards
+        return list(self.__cards.values)
     
     @property
     def flags(self):
         return self.__flags
-
-    @abstractmethod
-    def choose_card(self) -> Card:
-        # return card to play
-        pass
 
     def get_game_score(self):
         return self.__game_score
@@ -320,7 +349,10 @@ class Player(ABC):
         return score
 
     def has_card(self, card):
-        return card in self.__cards
+        return card in self.__cards.values
+    
+    def has_card_id(self, card_id):
+        return card_id in self.__cards
     
     def number_of_cards(self):
         return len(self.__cards)
@@ -335,19 +367,80 @@ class Player(ABC):
         self.__points += stitch.get_points()
         self.__flags += stitch.get_flags()
         self.__red_cards += stitch.get_red_cards()
+
+    def play_card(self, card_id):
+        return self.__cards.pop(card_id)
     
-    def get_cards(self, cards):
-        self.__cards = cards[:]
+    def get_card(self, card_id):
+        return self.__cards[card_id]
     
-    def get_card(self, card):
-        self.__cards.append(card)
+    def add_cards(self, cards):
+        for c in cards:
+            self.__cards[f"c{self.__card_id}"] = c
+            self.__card_id += 1
     
-    def remove_card(self, card):
-        self.__cards.remove(card)
+    def add_card(self, card):
+        self.__cards[f"c{self.__card_id}"] = card
+        self.__card_id += 1
+    
+    def remove_card_id(self, card_id):
+        del self.__cards[card_id]
     
     def clear_cards(self):
-        self.__cards = []
+        self.__cards = {}
         self.__stitches = []
         self.__points = 0
         self.__flags = []
         self.__red_cards = 0
+        self.__card_id = 0
+
+
+class GameManager:
+    def __init__(self):
+        self.__players: dict[str, Player] = {}
+        self.__player_ids = []
+        self.__game: Game = None
+        self.__current_player = 0
+        self.__state = LobbyState.JOIN
+    
+    def join(self, player: Player):
+        if self.__state is LobbyState.JOIN:
+            self.__players[player.id] = player
+            self.__player_ids.append(player.id)
+            return 0
+        return 1
+    
+    def leave(self, player_id):
+        if self.__state is LobbyState.JOIN:
+            del self.__players[player_id]
+            self.__player_ids.remove(player_id)
+            return
+        self.__state = LobbyState.CANCEL
+        # todo: handle break
+    
+    def play_card(self, player_id, card_id):
+
+        if self.__state is not LobbyState.GAME:
+            return 1
+        
+        if player_id not in self.__player_ids:
+            return 1
+        
+        if not self.__current_player == self.__player_ids.index(player_id):
+            return 1
+        
+        player = self.__players[player_id]
+        
+        if not player.has_card_id(card_id):
+            return 1
+        
+        card = player.get_card(card_id)
+        color = self.__game.current_color
+
+        if color is not Color.BLANCK and card.get_color() is not Color.BLANCK:
+            # apply zugzwang
+            if player.has_color(color) and card.color is not color:
+                return 1
+        
+        self.__game.play_card(player.play_card(card_id))
+        return 0

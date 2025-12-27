@@ -24,7 +24,7 @@ class TestPlayer(unittest.TestCase):
         card = Card(Game.RED, Game.MAX_RANK - 1)
         card2 = Card(Game.YELLOW, Game.MIN_PLAYER+1)
         self.assertEqual(player.cards, [], "player should'nt have cards")
-        player.get_card(card)
+        player.add_card(card)
         self.assertTrue(player.has_card(card), "player should have card")
         self.assertFalse(player.has_card(card2), "found wrong card")
         self.assertEqual(player.cards, [card], "player should habe card")
@@ -32,7 +32,7 @@ class TestPlayer(unittest.TestCase):
         self.assertTrue(player.has_color(Game.RED), "color not found")
         self.assertFalse(player.has_color(Game.YELLOW), "color found")
 
-        player.get_card(card2)
+        player.add_card(card2)
         player.remove_card(card)
         self.assertTrue(player.has_card(card2))
         self.assertTrue(player.has_color(Game.YELLOW))   

@@ -2,21 +2,11 @@ from fastapi import FastAPI
 from classes import *
 
 
-class WebPlayer(Player):
-    def __init__(self, p_id):
-        self.id = p_id
-        super().__init__()
-
-    def choose_card(self):
-        return super().choose_card()
-
 app = FastAPI()
 
-player_dict: dict[str, Player] = {f"p{i}": WebPlayer(f"p{i}") for i in range(4)}
+player_dict: dict[str, Player] = {f"p{i}": Player(f"p{i}") for i in range(4)}
 
-game_dict: dict[str, Game] = {
-    "myFirstGame": Game(list(player_dict.values())[:4])
-}
+lobby_dict: dict[str, ]
 
 
 @app.get("/")
