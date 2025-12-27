@@ -12,16 +12,8 @@ class LobbyState(Enum):
         
 
 class GameState(Enum):
-    DEALING = "dealing"
+    IDLE = "idle"
     PLAYING = "playing"
-    EVALUATING = "evaluating"
-    def next(self):
-        transition = {
-            GameState.DEALING: GameState.PLAYING,
-            GameState.PLAYING: GameState.EVALUATING,
-            GameState.EVALUATING: GameState.DEALING,
-        }
-        return transition[self]
 
 
 class Color(Enum):
@@ -121,7 +113,7 @@ class Card:
         return 1
 
 
-class Game:  # todo: finish class
+class Game:  # todo: integrate into gamemanager
 
     MIN_PLAYER = 3  # inclusiv
     MAX_PLAYER = 6  # inclusiv
@@ -139,14 +131,15 @@ class Game:  # todo: finish class
         if not Game.MIN_PLAYER <= player_count <= Game.MAX_PLAYER: raise ValueError("wrong player number")
         self.__current_stitch: Stitch = Stitch(self.__player_count)
         self.__round = 0
-        self.__state = GameState.DEALING
-    
-    def next_state(self):
-        self.__state = self.__state.next()
+        self.__state = GameState.IDLE
     
     @property
     def total_stitches(self):
         return len(Game.ALL_CARDS) // self.__player_count
+
+    @property
+    def round(self):
+        return self.__round
 
     @property
     def status(self):
@@ -155,7 +148,7 @@ class Game:  # todo: finish class
             "player_count": self.__player_count,
             "state": self.__state,
             "round": self.__round,
-            "last_round": self.__total_stitches,
+            "last_round": self.total_stitches,
         }
     
     @property
@@ -166,6 +159,10 @@ class Game:  # todo: finish class
     def player_count(self):
         return self.__player_count
     
+    @property
+    def stitch_full(self):
+        return self.__current_stitch.full
+
     def play_card(self, card):
         # caller-todo: remove card from player | check card | check player
 
@@ -187,12 +184,12 @@ class Game:  # todo: finish class
         self.__round += 1
         if self.__round > self.total_stitches:
             self.__round = 0
-            self.next_state()
+            self.__state = GameState.IDLE
         """determine winner, next player, give stitch to player"""
         return old_stitch  # kann ausgewertet und dem gewinner gegeben werden
 
     def deal_cards(self):
-        if self.__state is not GameState.DEALING:
+        if self.__state is not GameState.IDLE:
             return 1
         if len(Game.ALL_CARDS) % self.__player_count: raise ValueError("wrong number of players")
         stacks = [[] for _ in range(self.__player_count)]
@@ -203,26 +200,8 @@ class Game:  # todo: finish class
             stacks[open_p[p]].append(c)
             if len(stacks[open_p[p]]) >= card_per_player:
                 open_p.pop(p)
-        self.next_state()
+        self.__state = GameState.PLAYING
         return stacks
-    
-    def evaluate(self):
-        if self.__state is not GameState.EVALUATING:
-            return 1
-        
-        # todo
-
-        self.next_state()
-        return 0
-        
-        # todo
-        spell = max([p.spell for p in self.__players])
-        if spell:
-            for p in self.__players:
-                if not p.spell: p.add_game_score(spell)
-        else:
-            for p in self.__players:
-                p.add_game_score(p.score)
     
 
 class Stitch:
@@ -435,5 +414,35 @@ class GameManager:
             if player.has_color(color) and card.color is not color:
                 return 1
         
-        self.__game.play_card(player.play_card(card_id))
+        if self.__game.play_card(card):
+            raise ValueError()
+        
+        player.remove_card_id(card_id)
+        self.__current_player = (self.__current_player + 1) % self.__game.player_count
+
+        if self.__game.stitch_full:
+            self.evaluate_stitch()
+
         return 0
+
+    def evaluate_stitch(self):
+        pass
+
+    def evaluate_round(self):
+        if self.__state is not LobbyState.GAME:
+            return 1
+        
+        if self.__game.round != self.__game.total_stitches:
+            return 1
+        
+        spell = max([p.spell for p in self.__players])
+        if spell:
+            for p in self.__players:
+                if not p.spell: p.add_game_score(spell)
+        else:
+            for p in self.__players:
+                p.add_game_score(p.score)
+        
+        self.__state = LobbyState.IDLE
+        self.__current_player = 0
+    
