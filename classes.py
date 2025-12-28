@@ -182,6 +182,7 @@ class Player:
         self.__red_cards = 0
         self.__game_scores = []  # Punkte in jeder Runde
         self.__next_card_id = 0
+        self.switch_card_ids = []  # should not be protected
     
     @property
     def id(self):
@@ -206,6 +207,15 @@ class Player:
     @property
     def game_scores(self):
         return self.__game_scores
+    
+    @property
+    def switched_correct(self):
+        c_ids = []
+        for card_id in self.switch_card_ids:
+            if not self.has_card_id(card_id) or card_id in c_ids:
+                return False
+            c_ids.append(card_id)
+        return True
 
     @property
     def spell(self):
@@ -273,12 +283,20 @@ class Player:
         self.__flags = []
         self.__red_cards = 0
         self.__next_card_id = 0
+        self.switch_card_ids = []
 
 
 class GameManager:
 
     MIN_PLAYER = 3  # inclusiv
     MAX_PLAYER = 6  # inclusiv
+
+    SWITCH_CARDS = {
+        3: 4,
+        4: 3,
+        5: 3,
+        6: 2,
+    }
         
     ALL_CARDS = [
         Card(c, r)
@@ -320,6 +338,14 @@ class GameManager:
         return self.__current_stitch.full
     
     @property
+    def winner(self):
+        return min(self.__players, key=lambda p: p.total_game_score).id
+    
+    @property
+    def all_switched(self):
+        return all(self.switched_correct(p_id) for p_id in self.player_ids)
+    
+    @property
     def stacks(self):
         # no check for correctness! only call after check (on start)
         # returns all shuffled cards on player_count many stacks 
@@ -333,7 +359,14 @@ class GameManager:
             if len(stacks[open_p[p]]) >= card_per_player:
                 open_p.pop(p)
         return stacks
-    
+
+    def get_player_by_id(self, player_id):
+        return self.__players[self.player_ids.index(player_id)]
+
+    def switched_correct(self, player_id):
+        player = self.get_player_by_id(player_id)
+        return len(player.switch_card_ids) == GameManager.SWITCH_CARDS[self.player_count] and player.switched_correct
+
     def join(self, player: Player):
         if self.__state is LobbyState.JOIN:
             self.__players.append(player)
@@ -369,8 +402,36 @@ class GameManager:
         return
     
     def _skip_card_switch(self):  # todo: implement card switching
+        if self.__state is LobbyState.SETUP:
+            self.__state = LobbyState.GAME
+            return
+        return 1
+    
+    def switch_card(self, player_id, card_ids):
+        if self.__state is not LobbyState.SETUP:
+            return 1
+        
+        player = self.get_player_by_id(player_id)
+        player.switch_card_ids = card_ids
+        if player.switched_correct:
+            if self.all_switched: self.apply_switch()
+            return 0
+        player.switch_card_ids = []
+        return 1
+    
+    def apply_switch(self):
+        if not self.__state is LobbyState.SETUP:
+            return 1
+        
+        if not self.all_switched:
+            return 1
+        
+        # todo: apply switch
+        # get_cards for all switch_index
+        # remove cards from previous players
+        # add cards to new players
+
         self.__state = LobbyState.GAME
-        return
     
     def play_card(self, player_id, card_id):
 
@@ -413,8 +474,8 @@ class GameManager:
         if self.__state is not LobbyState.GAME:
             return 1
         
-        # todo: winner, next player, stitch to player
-        self.__current_stitch.winner
+        self.__current_player = (self.__current_player + self.__current_stitch.winner) % self.player_count
+        self.__players[self.__current_player].get_stitch(self.__current_stitch)
 
         self.__current_stitch = Stitch(self.player_count)
         self.__round += 1
