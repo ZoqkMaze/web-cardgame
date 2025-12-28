@@ -6,14 +6,10 @@ from enum import Enum
 
 class LobbyState(Enum):
     JOIN = "join"
+    SETUP = "setup"
     GAME = "game"
     IDLE = "idle"
     CANCEL = "cancel"
-        
-
-class GameState(Enum):
-    IDLE = "idle"
-    PLAYING = "playing"
 
 
 class Color(Enum):
@@ -112,97 +108,6 @@ class Card:
                 return 0
         return 1
 
-
-class Game:  # todo: integrate into gamemanager
-
-    MIN_PLAYER = 3  # inclusiv
-    MAX_PLAYER = 6  # inclusiv
-        
-    ALL_CARDS = [
-        Card(c, r)
-        for c in Color
-        for r in range(Card.MIN_RANK+1, Card.MAX_RANK)
-        if c is not Color.BLANCK
-    ] + [Card(Color.BLANCK, Card.MIN_RANK) for _ in range(len(Color))]
-
-
-    def __init__(self, player_count):
-        self.__player_count = player_count
-        if not Game.MIN_PLAYER <= player_count <= Game.MAX_PLAYER: raise ValueError("wrong player number")
-        self.__current_stitch: Stitch = Stitch(self.__player_count)
-        self.__round = 0
-        self.__state = GameState.IDLE
-    
-    @property
-    def total_stitches(self):
-        return len(Game.ALL_CARDS) // self.__player_count
-
-    @property
-    def round(self):
-        return self.__round
-
-    @property
-    def status(self):
-        return {
-            "typ": "game",
-            "player_count": self.__player_count,
-            "state": self.__state,
-            "round": self.__round,
-            "last_round": self.total_stitches,
-        }
-    
-    @property
-    def current_color(self):
-        return self.__current_stitch.color
-
-    @property
-    def player_count(self):
-        return self.__player_count
-    
-    @property
-    def stitch_full(self):
-        return self.__current_stitch.full
-
-    def play_card(self, card):
-        # caller-todo: remove card from player | check card | check player
-
-        if self.__state is not GameState.PLAYING:
-            return 1
-        
-        # the game does not check for validity -> the player class has to verify!
-        if self.__current_stitch.play_card(card):  # stitch is full (or wrong card)
-            return 1
-
-        # if stitch is full -> nothing happens -> call new_stitch
-        return 0
-    
-    def new_stitch(self):
-        if not self.__current_stitch.full:
-            return 1
-        old_stitch = self.__current_stitch
-        self.__current_stitch = Stitch(self.__player_count)
-        self.__round += 1
-        if self.__round > self.total_stitches:
-            self.__round = 0
-            self.__state = GameState.IDLE
-        """determine winner, next player, give stitch to player"""
-        return old_stitch  # kann ausgewertet und dem gewinner gegeben werden
-
-    def deal_cards(self):
-        if self.__state is not GameState.IDLE:
-            return 1
-        if len(Game.ALL_CARDS) % self.__player_count: raise ValueError("wrong number of players")
-        stacks = [[] for _ in range(self.__player_count)]
-        card_per_player = len(Game.ALL_CARDS) / self.__player_count
-        open_p = [x for x in range(self.__player_count)]
-        for c in Game.ALL_CARDS:
-            p = random.randint(0, len(open_p)-1)
-            stacks[open_p[p]].append(c)
-            if len(stacks[open_p[p]]) >= card_per_player:
-                open_p.pop(p)
-        self.__state = GameState.PLAYING
-        return stacks
-    
 
 class Stitch:
 
@@ -367,15 +272,48 @@ class Player:
 
 
 class GameManager:
+
+    MIN_PLAYER = 3  # inclusiv
+    MAX_PLAYER = 6  # inclusiv
+        
+    ALL_CARDS = [
+        Card(c, r)
+        for c in Color
+        for r in range(Card.MIN_RANK+1, Card.MAX_RANK)
+        if c is not Color.BLANCK
+    ] + [Card(Color.BLANCK, Card.MIN_RANK) for _ in range(len(Color))]
+
     def __init__(self):
         self.__players: list[Player] = []
-        self.__game: Game = None
         self.__current_player = 0
         self.__state = LobbyState.JOIN
+
+        self.__current_stitch: Stitch = None
+        self.__round = 0
     
     @property
     def player_ids(self):
         return [p.id for p in self.__players]
+    
+    @property
+    def player_count(self):
+        return len(self.__players)
+    
+    @property
+    def total_stitches(self):
+        return len(GameManager.ALL_CARDS) // self.player_count
+
+    @property
+    def round(self):
+        return self.__round
+    
+    @property
+    def current_color(self):
+        return self.__current_stitch.color
+    
+    @property
+    def stitch_full(self):
+        return self.__current_stitch.full
     
     def join(self, player: Player):
         if self.__state is LobbyState.JOIN:
@@ -389,6 +327,19 @@ class GameManager:
             return
         self.__state = LobbyState.CANCEL
         # todo: handle break
+    
+    def start(self):
+        if self.__state not in [LobbyState.JOIN, LobbyState.IDLE]:
+            return 1
+        if GameManager.MIN_PLAYER <= self.player_count <= GameManager.MAX_PLAYER:
+            self.__state = LobbyState.SETUP
+            self._game_deal_cards()  # todo: change
+            return
+        return 1
+    
+    def _skip_card_switch(self):  # todo: implement card switching
+        self.__state = LobbyState.GAME
+        return
     
     def play_card(self, player_id, card_id):
 
@@ -407,7 +358,7 @@ class GameManager:
             return 1
         
         card = player.get_card(card_id)
-        color = self.__game.current_color
+        color = self.current_color
 
         if color is not Color.BLANCK and card.color is not Color.BLANCK:
             # apply zugzwang
@@ -418,9 +369,9 @@ class GameManager:
             raise ValueError()
         
         player.remove_card_id(card_id)
-        self.__current_player = (self.__current_player + 1) % self.__game.player_count
+        self.__current_player = (self.__current_player + 1) % self.player_count
 
-        if self.__game.stitch_full:
+        if self.stitch_full:
             self.evaluate_stitch()
 
         return 0
@@ -432,7 +383,7 @@ class GameManager:
         if self.__state is not LobbyState.GAME:
             return 1
         
-        if self.__game.round != self.__game.total_stitches:
+        if self.round != self.total_stitches:
             return 1
         
         spell = max([p.spell for p in self.__players])
@@ -445,4 +396,46 @@ class GameManager:
         
         self.__state = LobbyState.IDLE
         self.__current_player = 0
+    
+    
+    def _game_play_card(self, card):
+        # caller-todo: remove card from player | check card | check player
+
+        if self.__state is not GameState.PLAYING:
+            return 1
+        
+        # the game does not check for validity -> the player class has to verify!
+        if self.__current_stitch.play_card(card):  # stitch is full (or wrong card)
+            return 1
+
+        # if stitch is full -> nothing happens -> call new_stitch
+        return 0
+    
+    def _game_new_stitch(self):
+        if not self.__current_stitch.full:
+            return 1
+        old_stitch = self.__current_stitch
+        self.__current_stitch = Stitch(self.__player_count)
+        self.__round += 1
+        if self.__round > self.total_stitches:
+            self.__round = 0
+            self.__state = GameState.IDLE
+        """determine winner, next player, give stitch to player"""
+        return old_stitch  # kann ausgewertet und dem gewinner gegeben werden
+
+    def get_card_stacks(self):
+        # no check for correctness! only call after check (on start)
+        if len(GameManager.ALL_CARDS) % self.player_count: raise ValueError("wrong number of players")
+        stacks = [[] for _ in range(self.player_count)]
+        card_per_player = len(GameManager.ALL_CARDS) / self.player_count
+        open_p = [x for x in range(self.player_count)]
+        for c in GameManager.ALL_CARDS:
+            p = random.randint(0, len(open_p)-1)
+            stacks[open_p[p]].append(c)
+            if len(stacks[open_p[p]]) >= card_per_player:
+                open_p.pop(p)
+        return stacks
+    
+    def deal_cards(self):
+        # no check for correctness! only call after check (on start)
     
