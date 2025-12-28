@@ -258,7 +258,7 @@ class Player:
         self.__flags += stitch.flags
         self.__red_cards += stitch.red_cards
 
-    def play_card(self, card_id):
+    def pop_card(self, card_id):
         return self.__cards.pop(card_id)
     
     def get_card_by_id(self, card_id):
@@ -275,6 +275,9 @@ class Player:
     
     def remove_card_by_id(self, card_id):
         del self.__cards[card_id]
+    
+    def remove_cards_by_id(self, card_ids):
+        for c_id in card_ids: self.remove_card_by_id(c_id)
     
     def clear_cards(self):
         self.__cards = {}
@@ -312,6 +315,8 @@ class GameManager:
 
         self.__current_stitch: Stitch = None
         self.__round = 0
+
+        self.__clock = 1
     
     @property
     def player_ids(self):
@@ -401,7 +406,7 @@ class GameManager:
         [self.__players[i].add_cards(self.stacks[i]) for i in range(self.player_count)]
         return
     
-    def _skip_card_switch(self):  # todo: implement card switching
+    def _skip_card_switch(self):
         if self.__state is LobbyState.SETUP:
             self.__state = LobbyState.GAME
             return
@@ -425,12 +430,12 @@ class GameManager:
         
         if not self.all_switched:
             return 1
-        
-        # todo: apply switch
-        # get_cards for all switch_index
-        # remove cards from previous players
-        # add cards to new players
 
+        switch_card_stacks = [[p.pop_card(c_id) for c_id in p.switch_card_ids] for p in self.__players]
+        for i in range(self.player_count):
+            self.__players[i].add_cards(switch_card_stacks[(i+self.__clock)%self.player_count])
+
+        self.__clock *= -1
         self.__state = LobbyState.GAME
     
     def play_card(self, player_id, card_id):
