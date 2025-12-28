@@ -180,7 +180,7 @@ class Player:
         self.__points = 0  # Punkte über alle Stiche einer Spielrunde
         self.__flags = []
         self.__red_cards = 0
-        self.__game_score = 0  # Punkte über alle Spielrunden
+        self.__game_scores = []  # Punkte in jeder Runde
         self.__next_card_id = 0
     
     @property
@@ -200,8 +200,12 @@ class Player:
         return len(self.__cards)
 
     @property
-    def game_score(self):
-        return self.__game_score
+    def total_game_score(self):
+        return sum(self.__game_scores)
+    
+    @property
+    def game_scores(self):
+        return self.__game_scores
 
     @property
     def spell(self):
@@ -225,7 +229,7 @@ class Player:
         return max(Player.MIN_POINTS, score)
 
     def add_game_score(self, points):
-        self.__game_score += points
+        self.__game_scores.append(points)
 
     def has_card(self, card):
         return card in self.__cards.values()
@@ -247,7 +251,7 @@ class Player:
     def play_card(self, card_id):
         return self.__cards.pop(card_id)
     
-    def get_card(self, card_id):
+    def get_card_by_id(self, card_id):
         return self.__cards[card_id]
     
     def add_cards(self, cards):
@@ -259,7 +263,7 @@ class Player:
         self.__cards[f"c{self.__next_card_id}"] = card
         self.__next_card_id += 1
     
-    def remove_card_id(self, card_id):
+    def remove_card_by_id(self, card_id):
         del self.__cards[card_id]
     
     def clear_cards(self):
@@ -315,6 +319,21 @@ class GameManager:
     def stitch_full(self):
         return self.__current_stitch.full
     
+    @property
+    def stacks(self):
+        # no check for correctness! only call after check (on start)
+        # returns all shuffled cards on player_count many stacks 
+        if len(GameManager.ALL_CARDS) % self.player_count: raise ValueError("wrong number of players")
+        stacks = [[] for _ in range(self.player_count)]
+        card_per_player = len(GameManager.ALL_CARDS) / self.player_count
+        open_p = [x for x in range(self.player_count)]
+        for c in GameManager.ALL_CARDS:
+            p = random.randint(0, len(open_p)-1)
+            stacks[open_p[p]].append(c)
+            if len(stacks[open_p[p]]) >= card_per_player:
+                open_p.pop(p)
+        return stacks
+    
     def join(self, player: Player):
         if self.__state is LobbyState.JOIN:
             self.__players.append(player)
@@ -329,13 +348,25 @@ class GameManager:
         # todo: handle break
     
     def start(self):
+        # startup for a new game round
         if self.__state not in [LobbyState.JOIN, LobbyState.IDLE]:
             return 1
         if GameManager.MIN_PLAYER <= self.player_count <= GameManager.MAX_PLAYER:
             self.__state = LobbyState.SETUP
-            self._game_deal_cards()  # todo: change
+            self.__current_player = 0
+            self.__current_stitch = Stitch(self.player_count)
+            self.__round = 1
+            # [p.clear_cards() for p in self.__players]  # already in deal_cards
+            self.deal_cards()
             return
         return 1
+    
+    def deal_cards(self):
+        # no check for correctness! only call after check (on start)
+        # todo: check correctness (not multiple calls for stacks)
+        [p.clear_cards() for p in self.__players]
+        [self.__players[i].add_cards(self.stacks[i]) for i in range(self.player_count)]
+        return
     
     def _skip_card_switch(self):  # todo: implement card switching
         self.__state = LobbyState.GAME
@@ -357,7 +388,7 @@ class GameManager:
         if not player.has_card_id(card_id):
             return 1
         
-        card = player.get_card(card_id)
+        card = player.get_card_by_id(card_id)
         color = self.current_color
 
         if color is not Color.BLANCK and card.color is not Color.BLANCK:
@@ -365,10 +396,10 @@ class GameManager:
             if player.has_color(color) and card.color is not color:
                 return 1
         
-        if self.__game.play_card(card):
+        if self.__current_stitch.play_card(card):
             raise ValueError()
         
-        player.remove_card_id(card_id)
+        player.remove_card_by_id(card_id)
         self.__current_player = (self.__current_player + 1) % self.player_count
 
         if self.stitch_full:
@@ -377,13 +408,25 @@ class GameManager:
         return 0
 
     def evaluate_stitch(self):
-        pass
+        if not self.stitch_full:
+            return 1
+        if self.__state is not LobbyState.GAME:
+            return 1
+        
+        # todo: winner, next player, stitch to player
+        self.__current_stitch.winner
+
+        self.__current_stitch = Stitch(self.player_count)
+        self.__round += 1
+
+        if self.__round > self.total_stitches:
+            self.evaluate_round()
 
     def evaluate_round(self):
         if self.__state is not LobbyState.GAME:
             return 1
         
-        if self.round != self.total_stitches:
+        if self.round <= self.total_stitches:
             return 1
         
         spell = max([p.spell for p in self.__players])
@@ -395,47 +438,3 @@ class GameManager:
                 p.add_game_score(p.score)
         
         self.__state = LobbyState.IDLE
-        self.__current_player = 0
-    
-    
-    def _game_play_card(self, card):
-        # caller-todo: remove card from player | check card | check player
-
-        if self.__state is not GameState.PLAYING:
-            return 1
-        
-        # the game does not check for validity -> the player class has to verify!
-        if self.__current_stitch.play_card(card):  # stitch is full (or wrong card)
-            return 1
-
-        # if stitch is full -> nothing happens -> call new_stitch
-        return 0
-    
-    def _game_new_stitch(self):
-        if not self.__current_stitch.full:
-            return 1
-        old_stitch = self.__current_stitch
-        self.__current_stitch = Stitch(self.__player_count)
-        self.__round += 1
-        if self.__round > self.total_stitches:
-            self.__round = 0
-            self.__state = GameState.IDLE
-        """determine winner, next player, give stitch to player"""
-        return old_stitch  # kann ausgewertet und dem gewinner gegeben werden
-
-    def get_card_stacks(self):
-        # no check for correctness! only call after check (on start)
-        if len(GameManager.ALL_CARDS) % self.player_count: raise ValueError("wrong number of players")
-        stacks = [[] for _ in range(self.player_count)]
-        card_per_player = len(GameManager.ALL_CARDS) / self.player_count
-        open_p = [x for x in range(self.player_count)]
-        for c in GameManager.ALL_CARDS:
-            p = random.randint(0, len(open_p)-1)
-            stacks[open_p[p]].append(c)
-            if len(stacks[open_p[p]]) >= card_per_player:
-                open_p.pop(p)
-        return stacks
-    
-    def deal_cards(self):
-        # no check for correctness! only call after check (on start)
-    
