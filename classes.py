@@ -189,8 +189,16 @@ class Player:
         return self.__id
     
     @property
-    def cards(self):
+    def card_dict(self):
         return self.__cards
+    
+    @property
+    def cards(self):
+        return list(self.__cards.values())
+    
+    @property
+    def card_ids(self):
+        return list(self.__cards.keys())
     
     @property
     def flags(self):
@@ -290,6 +298,12 @@ class Player:
 
 
 class GameManager:
+    # 1. every player: join
+    # 2. start
+    # 3. every player: switch cards
+    # 4. every player: play card
+    # 5. finish game
+    # 6. goto 2
 
     MIN_PLAYER = 3  # inclusiv
     MAX_PLAYER = 6  # inclusiv
@@ -317,10 +331,29 @@ class GameManager:
         self.__round = 0
 
         self.__clock = 1
+
+        self.__stitch_feedback = lambda winner_id: None
+        self.__game_feedback = lambda: None
     
+    @property
+    def state(self):
+        return self.__state
+
     @property
     def player_ids(self):
         return [p.id for p in self.__players]
+    
+    @property
+    def switch_card_number(self):
+        return GameManager.SWITCH_CARDS[self.player_count]
+    
+    @property
+    def current_player_id(self):
+        return self.player_ids[self.__current_player]
+    
+    @property
+    def missing_switch_player_ids(self):
+        return [p.id for p in self.__players if not self.switched_correct(p.id)]
     
     @property
     def player_count(self):
@@ -365,6 +398,18 @@ class GameManager:
                 open_p.pop(p)
         return stacks
 
+    def register_stitch_feedback(self, func):
+        if callable(func):
+            self.__stitch_feedback = func
+            return
+        return 1
+    
+    def register_game_feedback(self, func):
+        if callable(func):
+            self.__game_feedback = func
+            return
+        return 1
+    
     def get_player_by_id(self, player_id):
         return self.__players[self.player_ids.index(player_id)]
 
@@ -412,7 +457,7 @@ class GameManager:
             return
         return 1
     
-    def switch_card(self, player_id, card_ids):
+    def switch_cards(self, player_id, card_ids):
         if self.__state is not LobbyState.SETUP:
             return 1
         
@@ -470,6 +515,7 @@ class GameManager:
 
         if self.stitch_full:
             self.evaluate_stitch()
+            self.__stitch_feedback(self.player_ids[self.__current_player])
 
         return 0
 
@@ -502,5 +548,7 @@ class GameManager:
         else:
             for p in self.__players:
                 p.add_game_score(p.score)
+        
+        self.__game_feedback()
         
         self.__state = LobbyState.IDLE

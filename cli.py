@@ -1,26 +1,48 @@
 from classes import *
 
-class CLIPlayer(Player):
-    def __init__(self, name):
-        super().__init__()
-        self.name = name
-    
-    def choose_card(self):
-        print(f"player {self.name} - choose a card:")
-        for i, c in enumerate(self.cards):
-            print(f"   {i}: {c}")
-        choise = -1
-        while not 0 <= choise < len(self.cards):
-            try:
-                choise = int(input("card index: "))
-            except ValueError:
-                choise = -1
-        return self.cards[choise]
+
+def show_cards(player: Player):
+    for id, c in player.card_dict:
+        print(f"{id}: {c}")
+    return
+
+def select_card(player: Player):
+    show_cards(player)
+    inp = ""
+    while inp not in player.card_ids:
+        inp = input("card id: ")
+    return inp
+
+def choose_switch_cards(switch_cards, player: Player):
+    show_cards(player)
+    cards = []
+    for _ in range(switch_cards):
+        cards.append(select_card(player))
+    return cards
+
+def stitch_feedback(winner_id):
+    print(f"player {winner_id} won the stitch!")
 
 
 if __name__ == "__main__":
-    players = [CLIPlayer(str(i+1)) for i in range(3)]
-    game = Game(players)
-    game.gameloop()
-    for p in players:
-        print(f"player {p.name}: {p.get_game_score()}")
+    
+    # INITIALISING
+    manager = GameManager()
+    players = {f"p{i}": Player(f"p{i}") for i in range(4)}
+
+    # JOINING
+    for p in players.values(): manager.join(p)
+    
+    # SETUP
+    manager.start()
+    while not manager.all_switched:
+        for player_id in manager.missing_switch_player_ids:
+            manager.switch_cards(player_id, choose_switch_cards(manager.switch_card_number, players[player_id]))
+    
+    # GAME
+    while manager.state is LobbyState.GAME:
+        manager.play_card(manager.current_player_id, select_card(players[manager.current_player_id]))
+
+    print("results:")
+    for i, p in players:
+        print(f"   ({i}) {p.game_score}")
