@@ -24,7 +24,17 @@ async def player_request(player_id: str):
     return {"error": "Unknown player"}
 
 @app.get("/game/{game_id}")
-async def handle_game_reqest(game_id: str):
+async def game_request(game_id: str):
     if game_id in lobby_dict:
         return {"type": "game"} | lobby_dict[game_id].status_json
     return {"error": "Unknown game"}
+
+@app.get("/join/{player_id}")
+async def join_game(player_id: str, game_id: str):
+    if player_id not in player_dict:
+        return {"error": "Unknown player"}
+    if game_id not in lobby_dict:
+        return {"error": "Unknown game"}
+    if lobby_dict[game_id].join(player_dict[player_id]):
+        return {"error": "can not join lobby"}
+    return {"info": "successfully joined lobby"}

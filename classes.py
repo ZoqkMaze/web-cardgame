@@ -495,8 +495,9 @@ class GameManager:
 
     def join(self, player: Player):
         if self.__state is LobbyState.JOIN:
-            self.__players.append(player)
-            return 0
+            if player not in self.__players and player.id not in self.player_ids:
+                self.__players.append(player)
+                return 0
         return 1
     
     def leave(self, player):
