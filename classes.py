@@ -197,6 +197,13 @@ class Player:  # todo: sort cards on hand?
         self.switch_card_ids = []  # should not be protected
     
     @property
+    def status_json(self):
+        return {
+            "id": self.id,
+            "total_points": self.total_game_score,
+        }
+    
+    @property
     def id(self):
         return self.__id
     
@@ -337,7 +344,8 @@ class GameManager:
         if c is not Color.BLANCK
     ] + [Card(Color.BLANCK, Card.MIN_RANK) for c in Color if c is not Color.BLANCK]
 
-    def __init__(self):
+    def __init__(self, game_id=""):
+        self.__id = game_id
         self.__players: list[Player] = []
         self.__current_player = 0
         self.__state = LobbyState.JOIN
@@ -349,6 +357,19 @@ class GameManager:
 
         self.__stitch_feedback = lambda winner_id: None
         self.__game_feedback = lambda: None
+
+    @property
+    def status_json(self):
+        return {
+            "id": self.id,
+            "state": self.state.value,
+            "round": self.round,
+            "player_count": self.player_count,
+        }
+    
+    @property
+    def id(self):
+        return self.__id
     
     @property
     def state(self):

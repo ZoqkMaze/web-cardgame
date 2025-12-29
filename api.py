@@ -6,12 +6,12 @@ app = FastAPI()
 
 player_dict: dict[str, Player] = {f"p{i}": Player(f"p{i}") for i in range(4)}
 
-lobby_dict: dict[str, ]
+lobby_dict: dict[str, GameManager] = {f"g{i}": GameManager(f"g{i}") for i in range(2)}
 
 
 @app.get("/")
 async def root():
-    return {"message": "Hello, World!"}
+    return {"info": "Welcome to the Witches API! If you are new, a look at /docs could be helpfull."}
 
 @app.get("/test/{param}")
 async def test(param: int, foo: float | None = None):
@@ -20,11 +20,11 @@ async def test(param: int, foo: float | None = None):
 @app.get("/player/{player_id}")
 async def player_request(player_id: str):
     if player_id in player_dict:
-        return {"player": player_id}
-    return {"error": "unknown player"}
+        return {"type": "player"} | player_dict[player_id].status_json
+    return {"error": "Unknown player"}
 
 @app.get("/game/{game_id}")
 async def handle_game_reqest(game_id: str):
-    if game_id in game_dict:
-        return {"id": game_id} | game_dict[game_id].game_status()
-    return {"detail": "Not Found"}
+    if game_id in lobby_dict:
+        return {"type": "game"} | lobby_dict[game_id].status_json
+    return {"error": "Unknown game"}
