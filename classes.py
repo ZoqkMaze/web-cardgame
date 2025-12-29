@@ -1,5 +1,5 @@
 import random
-from enum import Enum
+from enum import Enum, auto
 
 # todo: add error codes for each class
 
@@ -21,12 +21,12 @@ class Color(Enum):
 
 
 class Flag(Enum):
-    RED_FLAG = "double normal points"
-    BLUE_FLAG = "clear all points"
-    YELLOW_FLAG = "minus 5 points"
-    LOW_FLAG = "plus 5 points"
-    HIGH_FLAG = "plus 5 points"
-    NONE_FLAG = "no effect"
+    RED_FLAG = auto()  # double red points
+    BLUE_FLAG = auto()  # clear all points
+    YELLOW_FLAG = auto()  # minus 5 points
+    LOW_FLAG = auto()  # plus 5 points
+    HIGH_FLAG = auto()  # plus 10 points
+    NONE_FLAG = auto()  # no effect
 
 
 class Spell(Enum):
@@ -155,14 +155,18 @@ class Stitch:
             return Stitch.NO_CARD_ERROR
         
         if self.__color == Color.BLANCK: self.__color = card.color
-        if self.__winner == -1: self.__winner = 0
-        if card.color is self.__color and card > self.__cards[self.__winner]: self.__winner = self.__next_index
+
+        if self.__winner == -1:
+            self.__winner = 0
+        elif card.color is self.__color and card > self.__cards[self.__winner]:
+            self.__winner = self.__next_index
+
         self.__next_index += 1
         self.__cards.append(card)
         self.__points += card.points
         flag = card.flag
         if flag != Flag.NONE_FLAG: self.__flags.append(flag)
-        if card.__color is Color.RED: self.__red_cards += 1
+        if card.color is Color.RED: self.__red_cards += 1
         return
     
 
@@ -278,8 +282,10 @@ class Player:
             self.__next_card_id += 1
     
     def add_card(self, card):
-        self.__cards[f"c{self.__next_card_id}"] = card
+        next_id = f"c{self.__next_card_id}"
+        self.__cards[next_id] = card
         self.__next_card_id += 1
+        return next_id
     
     def remove_card_by_id(self, card_id):
         del self.__cards[card_id]
@@ -320,7 +326,7 @@ class GameManager:
         for c in Color
         for r in range(Card.MIN_RANK+1, Card.MAX_RANK)
         if c is not Color.BLANCK
-    ] + [Card(Color.BLANCK, Card.MIN_RANK) for _ in range(len(Color))]
+    ] + [Card(Color.BLANCK, Card.MIN_RANK) for c in Color if c is not Color.BLANCK]
 
     def __init__(self):
         self.__players: list[Player] = []
@@ -387,7 +393,7 @@ class GameManager:
     def stacks(self):
         # no check for correctness! only call after check (on start)
         # returns all shuffled cards on player_count many stacks 
-        if len(GameManager.ALL_CARDS) % self.player_count: raise ValueError("wrong number of players")
+        if len(GameManager.ALL_CARDS) % self.player_count: raise ValueError(f"wrong number of players ({self.player_count}) for {len(GameManager.ALL_CARDS)} cards")
         stacks = [[] for _ in range(self.player_count)]
         card_per_player = len(GameManager.ALL_CARDS) / self.player_count
         open_p = [x for x in range(self.player_count)]
@@ -448,7 +454,8 @@ class GameManager:
         # no check for correctness! only call after check (on start)
         # todo: check correctness (not multiple calls for stacks)
         [p.clear_cards() for p in self.__players]
-        [self.__players[i].add_cards(self.stacks[i]) for i in range(self.player_count)]
+        stacks = self.stacks
+        [self.__players[i].add_cards(stacks[i]) for i in range(self.player_count)]
         return
     
     def _skip_card_switch(self):

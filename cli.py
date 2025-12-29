@@ -2,22 +2,25 @@ from classes import *
 
 
 def show_cards(player: Player):
-    for id, c in player.card_dict:
-        print(f"{id}: {c}")
+    for id in player.card_dict:
+        print(f"{id}: {player.card_dict[id]}")
     return
 
-def select_card(player: Player):
-    show_cards(player)
+def select_card(player: Player, show=True):
+    if show: show_cards(player)
     inp = ""
     while inp not in player.card_ids:
         inp = input("card id: ")
     return inp
 
 def choose_switch_cards(switch_cards, player: Player):
+    print(f"Player {player.id}, choose {switch_cards} different cards to switch:")
     show_cards(player)
     cards = []
-    for _ in range(switch_cards):
-        cards.append(select_card(player))
+    while len(cards) != switch_cards:
+        inp = input("card id: ")
+        if inp not in cards and inp in player.card_ids:
+            cards.append(inp)
     return cards
 
 def stitch_feedback(winner_id):
