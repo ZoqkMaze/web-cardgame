@@ -183,6 +183,8 @@ class Player:
     HIGH_POINTS = 10
     LOW_POINTS = 5
 
+    START_ID = 0
+
     def __init__(self, id):
         self.__id = id
         self.__cards: dict[str, Card] = {}
@@ -191,7 +193,7 @@ class Player:
         self.__flags = []
         self.__red_cards = 0
         self.__game_scores = []  # Punkte in jeder Runde
-        self.__next_card_id = 0
+        self.__next_card_id = Player.START_ID
         self.switch_card_ids = []  # should not be protected
     
     @property
@@ -366,7 +368,7 @@ class GameManager:
     
     @property
     def missing_switch_player_ids(self):
-        return [p.id for p in self.__players if not p.switched_correct(self.player_count)]
+        return [p.id for p in self.__players if not p.switched_correct(self.switch_card_number)]
     
     @property
     def player_count(self):
@@ -389,8 +391,9 @@ class GameManager:
         return self.__current_stitch.full
     
     @property
-    def winner(self):
-        return min(self.__players, key=lambda p: p.total_game_score).id
+    def winner_ids(self):
+        min_score = min([p.total_game_score for p in self.__players])
+        return [p.id for p in self.__players if p.total_game_score == min_score]
     
     @property
     def all_switched(self):
@@ -467,7 +470,7 @@ class GameManager:
 
     def switched_correct(self, player_id):
         player = self.get_player_by_id(player_id)
-        return player.switched_correct(GameManager.SWITCH_CARDS[self.player_count])
+        return player.switched_correct(self.switch_card_number)
 
     def join(self, player: Player):
         if self.__state is LobbyState.JOIN:
@@ -475,12 +478,22 @@ class GameManager:
             return 0
         return 1
     
-    def leave(self, player_id):
+    def leave(self, player):
+        if player not in self.__players:
+            return 1
         if self.__state is LobbyState.JOIN:
-            self.__players.remove(player_id)
-            return
+            self.__players.remove(player)
+            return 0
         self.__state = LobbyState.CANCEL
         # todo: handle break
+    
+    def leave_by_id(self, player_id):
+        if player_id not in self.player_ids:
+            return 1
+        if self.__state is LobbyState.JOIN:
+            self.__players.pop(self.player_ids.index(player_id))
+            return 0
+        self.__state = LobbyState.CANCEL
     
     def start(self):
         # startup for a new game round
@@ -490,7 +503,7 @@ class GameManager:
             self.__state = LobbyState.SETUP
             self.__current_player = 0
             self.__current_stitch = Stitch(self.player_count)
-            self.__round = 1
+            # self.__round = 1
             # [p.clear_cards() for p in self.__players]  # already in deal_cards
             self.deal_cards()
             return
@@ -515,7 +528,7 @@ class GameManager:
             return 1
         
         player = self.get_player_by_id(player_id)
-        player.switch_card_ids = card_ids
+        player.switch_card_ids = card_ids[:]
         if self.switched_correct(player_id):
             if self.all_switched: self.apply_switch()
             return 0
@@ -535,6 +548,7 @@ class GameManager:
 
         self.next_switch_type()
         self.__state = LobbyState.GAME
+        self.__round = 1
     
     def play_card(self, player_id, card_id):
 
@@ -594,7 +608,7 @@ class GameManager:
         if self.round <= self.total_stitches:
             return 1
         
-        spell = max([p.spell for p in self.__players])
+        spell = max([p.spell.value for p in self.__players])
         if spell:
             for p in self.__players:
                 if not p.spell: p.add_game_score(spell)

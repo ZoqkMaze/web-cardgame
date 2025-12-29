@@ -13,6 +13,9 @@ class TestCard(unittest.TestCase):
         cls.blue_witch = Card(Color.BLUE, 11)
         cls.yellow_witch = Card(Color.YELLOW, 11)
         cls.jokers = [Card(Color.BLANCK, 0) for _ in range(4)]
+    
+    def test_all_cards(self):
+        self.assertEqual(len(GameManager.ALL_CARDS), 60)
 
     def test_card_equality(self):
         self.assertEqual(self.red_card, self.red_card)
@@ -168,37 +171,167 @@ class TestSpecialCases(unittest.TestCase):
         self.assertEqual(stitch.winner, 3)
 
 
-class TestGame(unittest.TestCase):
+class TestGameSetup(unittest.TestCase):
 
-    def test_cards(self):
-        self.assertEqual(len(GameManager.ALL_CARDS), 60)
+    @classmethod
+    def setUpClass(cls):
+        cls.manager = GameManager()
+        cls.players = [Player(f"p{i+1}") for i in range(4)]
 
-    def test_deal_cards(self):
-        players = [Player(f"{i}") for i in range(4)]
-        game = GameManager()
-        for p in players: game.join(p)
-        self.assertEqual(game.player_count, 4)
-        game.deal_cards()
-        for c in GameManager.ALL_CARDS:
-            self.assertEqual(sum([p.has_card(c) for p in players]), 1)
+    def test_a_join(self):
+        self.assertEqual(self.manager.state, LobbyState.JOIN)
+        self.assertEqual(self.manager.player_count, 0)
+        [self.manager.join(p) for p in self.players]
+        self.assertEqual(self.manager.player_count, 4)
+        self.assertEqual(self.manager.player_ids, [f"p{i+1}" for i in range(4)])
     
-    # todo: test the following
-    # - state machine
-    # - rounds
-    # - winner
-    # - switch card
-    #    - numbers
-    #    - missing players
-    #    - all_switched
-    #    - switch_type
-    #    - switched correct
-    #    - apply_switch
-    # - join
-    # - leave
-    # - start game
-    # - play card
-    # - evaluate_stitch
-    # - evaluate_round
+    def test_b_leave(self):
+        p = Player("test")
+        self.manager.join(Player("tmp_player"))
+        self.manager.join(p)
+        self.manager.leave_by_id("tmp_player")
+        self.manager.leave(p)
+        self.assertEqual(self.manager.player_count, 4)
+        self.assertNotIn("tmp_player", self.manager.player_ids)
+        self.assertNotIn("test", self.manager.player_ids)
+    
+    def test_c_start(self):
+        self.assertEqual(self.manager.round, 0)
+        self.manager.start()
+        self.assertEqual(self.manager.state, LobbyState.SETUP)
+        self.assertEqual(self.manager.total_stitches, 60/4)
+        self.assertEqual(self.manager.round, 0)
+        for c in GameManager.ALL_CARDS:
+            self.assertEqual(sum([p.has_card(c) for p in self.players]), 1)
+    
+    def test_d_switch_type(self):
+        self.assertEqual(self.manager.switch_type, SwitchType.CLOCK)
+        self.manager.set_switch_type(SwitchType.REVERSED)
+        self.assertEqual(self.manager.switch_type, SwitchType.REVERSED)
+        self.manager.next_switch_type()
+        self.assertEqual(self.manager.switch_type, SwitchType.PAIR)
+
+    def test_e_switch(self):
+        self.assertEqual(self.manager.state, LobbyState.SETUP)
+        self.assertEqual(self.manager.switch_card_number, 3)
+        self.assertFalse(self.manager.all_switched)
+
+        p = self.players[0]
+        self.assertFalse(self.manager.switch_cards(p.id, p.card_ids[:3]))
+        self.assertTrue(self.manager.switched_correct(p.id))
+        self.assertTrue(p.switched_correct(self.manager.switch_card_number))
+        self.assertNotIn(p.id, self.manager.missing_switch_player_ids)
+
+        p = self.players[1]
+        self.assertTrue(self.manager.switch_cards(p.id, []))
+        self.assertFalse(self.manager.switched_correct(p.id))
+        self.assertIn(p.id, self.manager.missing_switch_player_ids)
+
+        self.manager.switch_cards(p.id, p.card_ids[:4])
+        self.assertFalse(self.manager.switched_correct(p.id))
+        self.manager.switch_cards(p.id, p.card_ids[:2] + p.card_ids[:1])
+        self.assertFalse(self.manager.switched_correct(p.id))
+        self.manager.switch_cards(p.id, ["x", "y", "z"])
+        self.assertFalse(self.manager.switched_correct(p.id))
+
+        # apply switch
+        cards = [ p.cards[:3] for p in self.players]
+        [self.manager.switch_cards(p.id, p.card_ids[:3]) for p in self.players]
+        self.assertFalse(self.manager.all_switched)  # should be false because of the switch
+        for i, p in enumerate(self.players):
+            self.assertFalse(any([p.has_card(c) for c in cards[i]]))
+            self.assertTrue(all([p.has_card(c) for c in cards[(i+2)%4]]))
+        self.assertEqual(self.manager.switch_type, SwitchType.CLOCK)
+        self.assertEqual(self.manager.state, LobbyState.GAME)
+    
+    def test_f_wrong_join_and_leave(self):
+        self.assertTrue(self.manager.start())
+        self.assertTrue(self.manager.join(Player("test")))
+        self.assertNotIn("test", self.manager.player_ids)
+        self.assertTrue(self.manager.leave(Player("")))
+        self.assertTrue(self.manager.leave_by_id("ghjksdsdfj"))
+        self.assertFalse(self.manager.leave_by_id("p1"))
+        self.assertEqual(self.manager.state, LobbyState.CANCEL)
+
+
+class TestGamePlay(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        cls.manager = GameManager()
+        cls.players = [Player(f"p{i+1}") for i in range(3)]
+        cls.manager._GameManager__players = cls.players[:]
+        cls.manager._GameManager__state = LobbyState.GAME
+        cls.manager._GameManager__current_stitch = Stitch(3)
+        cls.manager._GameManager__round = 1
+
+        cls.players[0]._Player__cards = {
+            "c1": Card(Color.RED, 14),  # +1
+            "c2": Card(Color.BLUE, 14), 
+            "c3": Card(Color.BLANCK, 0)
+        }
+        cls.players[1]._Player__cards = {
+            "c1": Card(Color.RED, 7),  # +1
+            "c2": Card(Color.RED, 11),  # x2
+            "c3": Card(Color.YELLOW, 11)  # -5
+        }
+        cls.players[2]._Player__cards = {
+            "c1": Card(Color.BLANCK, 0),
+            "c2": Card(Color.GREEN, 1),
+            "c3": Card(Color.RED, 10)  # +1
+        }
+
+    def test_a_play_card(self):
+        self.assertEqual(self.manager.current_player_id, "p1")
+        self.assertFalse(self.manager.play_card("p1", "c1"))  # RED-14
+        self.assertTrue(self.manager.play_card("p2", "c3"))  # YELLOW-14 (wrong)
+        self.assertTrue(self.manager.play_card("p3", "c3"))  # wrong player
+        self.assertFalse(self.manager.play_card("p2", "c2"))  # RED-11
+        self.assertEqual(self.manager.current_player_id, "p3")
+        self.assertFalse(self.manager.stitch_full)
+        self.assertEqual(self.manager.current_color, Color.RED)
+        self.assertFalse(self.manager.play_card("p3", "c1"))  # joker
+
+        self.assertNotIn("c1", self.players[0].card_dict)
+        self.assertEqual(self.players[0].flags, [Flag.RED_FLAG])
+        self.assertEqual(self.players[0].score, 2)
+        self.assertEqual(self.manager.round, 2)
+        self.assertEqual(self.players[1].flags, [])
+        self.assertEqual(self.players[2].score, 0)
+
+        self.assertEqual(self.manager.current_player_id, "p1")
+        self.assertFalse(self.manager.play_card("p1", "c3"))  # joker
+        self.assertEqual(self.manager.current_color, Color.BLANCK)
+        self.assertTrue(self.manager.play_card("p2", "c2"))  # same card as before
+        self.assertFalse(self.manager.play_card("p2", "c1"))  # RED-7
+        self.assertEqual(self.manager.current_color, Color.RED)
+        self.assertTrue(self.manager.play_card("p3", "c2"))  # GREEN-1 (wrong)
+        self.assertFalse(self.manager.play_card("p3", "c3"))  # RED-10
+
+        self.assertEqual(self.manager.current_player_id, "p3")
+        self.assertEqual(self.players[2].score, 2)
+        self.assertEqual(self.manager.round, 3)
+
+        self.manager._GameManager__round = self.manager.total_stitches
+
+        self.assertFalse(self.manager.play_card("p3", "c2"))
+        self.assertFalse(self.manager.play_card("p1", "c2"))
+        self.assertFalse(self.manager.play_card("p2", "c3"))
+
+        self.assertEqual(self.manager.current_player_id, "p3")
+        self.assertEqual(self.players[0].score, 2)
+        self.assertEqual(self.players[1].score, 0)
+        self.assertEqual(self.players[2].score, 0)
+
+        self.assertEqual(self.manager.state, LobbyState.IDLE)
+        self.assertEqual(self.players[0].total_game_score, 2)
+        self.assertEqual(self.players[1].total_game_score, 0)
+        self.assertEqual(self.players[2].total_game_score, 0)
+        self.assertEqual(self.manager.winner_ids, ["p2", "p3"])
+
+    def test_b_new_start(self):
+        self.assertFalse(self.manager.start())
+        self.assertEqual(self.manager.state, LobbyState.SETUP)
 
 
 if __name__ == "__main__":
