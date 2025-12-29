@@ -36,6 +36,12 @@ class Spell(Enum):
     HIGH_SPELL = 30
 
 
+class SwitchType(Enum):
+    CLOCK = "clock"
+    REVERSED = "reversed"
+    PAIR = "pair"
+
+
 class Card:
 
     MIN_RANK = 0  # inclusive
@@ -67,7 +73,7 @@ class Card:
         return self.__rank == Card.WITCH_RANK
     
     @property
-    def queen(self):
+    def queen(self):  # todo: only green 12 is queen?
         return self.__rank == Card.QUEEN_RANK
     
     @property
@@ -220,14 +226,15 @@ class Player:
     def game_scores(self):
         return self.__game_scores
     
-    @property
-    def switched_correct(self):
+    def switched_correct(self, number_of_cards):
         c_ids = []
         for card_id in self.switch_card_ids:
             if not self.has_card_id(card_id) or card_id in c_ids:
                 return False
             c_ids.append(card_id)
-        return True
+        if len(c_ids) == number_of_cards:
+            return True
+        return False
 
     @property
     def spell(self):
@@ -336,7 +343,7 @@ class GameManager:
         self.__current_stitch: Stitch = None
         self.__round = 0
 
-        self.__clock = 1
+        self.__switch_type = 1
 
         self.__stitch_feedback = lambda winner_id: None
         self.__game_feedback = lambda: None
@@ -359,7 +366,7 @@ class GameManager:
     
     @property
     def missing_switch_player_ids(self):
-        return [p.id for p in self.__players if not self.switched_correct(p.id)]
+        return [p.id for p in self.__players if not p.switched_correct(self.player_count)]
     
     @property
     def player_count(self):
@@ -390,6 +397,15 @@ class GameManager:
         return all(self.switched_correct(p_id) for p_id in self.player_ids)
     
     @property
+    def switch_type(self):
+        match self.__switch_type:
+            case 1: return SwitchType.CLOCK
+            case -1: return SwitchType.REVERSED
+            case 2: return SwitchType.PAIR
+            case 3: return SwitchType.PAIR
+            case _: raise ValueError(f"unknown switch type {self.__switch_type}")
+    
+    @property
     def stacks(self):
         # no check for correctness! only call after check (on start)
         # returns all shuffled cards on player_count many stacks 
@@ -403,6 +419,36 @@ class GameManager:
             if len(stacks[open_p[p]]) >= card_per_player:
                 open_p.pop(p)
         return stacks
+    
+    def set_switch_type(self, s_type: SwitchType):
+        if s_type is SwitchType.CLOCK:
+            self.__switch_type = 1
+            return
+        if s_type is SwitchType.REVERSED:
+            self.__switch_type = -1
+            return
+        if s_type is SwitchType.PAIR:
+            if self.player_count == 4:
+               self.__switch_type = 2
+               return
+            if self.player_count == 6:
+                self.__switch_type = 3
+                return
+        return 1
+    
+    def next_switch_type(self):
+        match self.switch_type:
+            case SwitchType.CLOCK:
+                self.set_switch_type(SwitchType.REVERSED)
+            case SwitchType.REVERSED:
+                if self.player_count % 2:
+                    self.set_switch_type(SwitchType.CLOCK)
+                else:
+                    self.set_switch_type(SwitchType.PAIR)
+            case SwitchType.PAIR:
+                self.set_switch_type(SwitchType.CLOCK)
+            case _:
+                raise ValueError(f"unknown switch type {self.switch_type}")
 
     def register_stitch_feedback(self, func):
         if callable(func):
@@ -421,7 +467,7 @@ class GameManager:
 
     def switched_correct(self, player_id):
         player = self.get_player_by_id(player_id)
-        return len(player.switch_card_ids) == GameManager.SWITCH_CARDS[self.player_count] and player.switched_correct
+        return player.switched_correct(GameManager.SWITCH_CARDS[self.player_count])
 
     def join(self, player: Player):
         if self.__state is LobbyState.JOIN:
@@ -470,7 +516,7 @@ class GameManager:
         
         player = self.get_player_by_id(player_id)
         player.switch_card_ids = card_ids
-        if player.switched_correct:
+        if self.switched_correct(player_id):
             if self.all_switched: self.apply_switch()
             return 0
         player.switch_card_ids = []
@@ -485,9 +531,9 @@ class GameManager:
 
         switch_card_stacks = [[p.pop_card(c_id) for c_id in p.switch_card_ids] for p in self.__players]
         for i in range(self.player_count):
-            self.__players[i].add_cards(switch_card_stacks[(i+self.__clock)%self.player_count])
+            self.__players[i].add_cards(switch_card_stacks[(i+self.__switch_type)%self.player_count])
 
-        self.__clock *= -1
+        self.next_switch_type()
         self.__state = LobbyState.GAME
     
     def play_card(self, player_id, card_id):
