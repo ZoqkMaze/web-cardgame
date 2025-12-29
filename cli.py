@@ -47,5 +47,5 @@ if __name__ == "__main__":
         manager.play_card(manager.current_player_id, select_card(players[manager.current_player_id]))
 
     print("results:")
-    for i, p in players:
-        print(f"   ({i}) {p.game_score}")
+    for i in players:
+        print(f"   ({i}) {players[i].total_game_score}")
