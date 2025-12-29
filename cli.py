@@ -18,7 +18,7 @@ def choose_switch_cards(switch_cards, player: Player):
     show_cards(player)
     cards = []
     while len(cards) != switch_cards:
-        inp = input("card id: ")
+        inp = input(f"Player {manager.current_player_id}, play a card: ")
         if inp not in cards and inp in player.card_ids:
             cards.append(inp)
     return cards
@@ -31,21 +31,30 @@ if __name__ == "__main__":
     
     # INITIALISING
     manager = GameManager()
-    players = {f"p{i}": Player(f"p{i}") for i in range(4)}
+    players = {f"p{i+1}": Player(f"p{i+1}") for i in range(4)}
 
     # JOINING
     for p in players.values(): manager.join(p)
     
-    # SETUP
-    manager.start()
-    while not manager.all_switched:
-        for player_id in manager.missing_switch_player_ids:
-            manager.switch_cards(player_id, choose_switch_cards(manager.switch_card_number, players[player_id]))
-    
-    # GAME
-    while manager.state is LobbyState.GAME:
-        manager.play_card(manager.current_player_id, select_card(players[manager.current_player_id]))
+    new_round = True
+    while new_round:
+            
+        # SETUP
+        manager.start()
+        while manager.state is LobbyState.SETUP:
+            for player_id in manager.missing_switch_player_ids:
+                manager.switch_cards(player_id, choose_switch_cards(manager.switch_card_number, players[player_id]))
+        
+        # GAME
+        while manager.state is LobbyState.GAME:
+            manager.play_card(manager.current_player_id, select_card(players[manager.current_player_id]))
 
-    print("results:")
-    for i in players:
-        print(f"   ({i}) {players[i].total_game_score}")
+        print("results:")
+        for i in players:
+            print(f"   ({i}) {players[i].total_game_score}")
+        
+        new_round = True if input("next round (y/n): ").lower() == "y" else False
+    
+    print(f"overall winners: {manager.winner_ids}")
+    
+

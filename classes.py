@@ -176,7 +176,7 @@ class Stitch:
         return
     
 
-class Player:
+class Player:  # todo: sort cards on hand?
 
     MIN_POINTS = 0  # inklusive
     MAX_DOUBLE_POINTS = 15
@@ -511,7 +511,6 @@ class GameManager:
     
     def deal_cards(self):
         # no check for correctness! only call after check (on start)
-        # todo: check correctness (not multiple calls for stacks)
         [p.clear_cards() for p in self.__players]
         stacks = self.stacks
         [self.__players[i].add_cards(stacks[i]) for i in range(self.player_count)]
@@ -544,7 +543,7 @@ class GameManager:
 
         switch_card_stacks = [[p.pop_card(c_id) for c_id in p.switch_card_ids] for p in self.__players]
         for i in range(self.player_count):
-            self.__players[i].add_cards(switch_card_stacks[(i+self.__switch_type)%self.player_count])
+            self.__players[i].add_cards(switch_card_stacks[(i-self.__switch_type)%self.player_count])
 
         self.next_switch_type()
         self.__state = LobbyState.GAME
