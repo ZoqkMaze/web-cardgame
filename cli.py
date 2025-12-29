@@ -18,7 +18,7 @@ def choose_switch_cards(switch_cards, player: Player):
     show_cards(player)
     cards = []
     while len(cards) != switch_cards:
-        inp = input(f"Player {manager.current_player_id}, play a card: ")
+        inp = input(f"card id: ")
         if inp not in cards and inp in player.card_ids:
             cards.append(inp)
     return cards
@@ -31,6 +31,7 @@ if __name__ == "__main__":
     
     # INITIALISING
     manager = GameManager()
+    manager.register_stitch_feedback(stitch_feedback)
     players = {f"p{i+1}": Player(f"p{i+1}") for i in range(4)}
 
     # JOINING
@@ -47,7 +48,9 @@ if __name__ == "__main__":
         
         # GAME
         while manager.state is LobbyState.GAME:
-            manager.play_card(manager.current_player_id, select_card(players[manager.current_player_id]))
+            p_id = manager.current_player_id
+            print(f"Player {p_id}, choose a card to play!")
+            manager.play_card(p_id, select_card(players[p_id]))
 
         print("results:")
         for i in players:
