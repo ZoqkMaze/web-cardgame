@@ -69,6 +69,10 @@ class Card:
         return f"Card<{self.__color}-{self.__rank}>"
     
     @property
+    def json(self):
+        return {"color": self.color.value, "rank": self.rank}
+    
+    @property
     def witch(self):
         return self.__rank == Card.WITCH_RANK
     
@@ -129,6 +133,10 @@ class Stitch:
         self.__flags = []
         self.__red_cards = 0
         self.__winner = -1
+    
+    @property
+    def json(self):
+        return {"type": "stitch", "full": self.full, "color": self.color, "player": self.__next_index, "winner": self.winner, "cards": [c.json for c in self.__cards]}
 
     @property
     def red_cards(self):
@@ -366,6 +374,10 @@ class GameManager:
             "round": self.round,
             "player_count": self.player_count,
         }
+    
+    @property
+    def stitch_json(self):
+        return self.__current_stitch.json
     
     @property
     def id(self):

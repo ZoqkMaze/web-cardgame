@@ -3,10 +3,20 @@ from classes import *
 import uuid  # for player ids
 from nanoid import generate  # for lobby ids
 
+# join
+    # show lobby
+# start
+    # show cards
+# switch cards
+# play cards
+    # show stitches
+# restart
+
 
 UNKNOWN_PLAYER_ERROR = {"error": "Unknown player_id"}
 UNKNOWN_GAME_ERROR = {"error": "Unknown game_id"}
 UNKNOWN_CARD_ERROR = {"error": "Unknown card_id"}
+UNACTIVE_GAME_ERROR = {"error": "Game is not active"}
 
 
 def get_player_name(name):
@@ -47,6 +57,18 @@ lobbies: dict[str, GameManager] = dict()
 async def root():
     return {"info": "Welcome to the Witches API! If you are new, a look at /docs could be helpfull."}
 
+@app.get("/player/{player_id}")
+async def player_request(player_id: str):
+    if player_id in players:
+        return {"type": "player"} | players[player_id].status_json
+    return UNKNOWN_PLAYER_ERROR
+
+@app.get("/game/{game_id}")
+async def game_request(game_id: str):
+    if game_id in lobbies:
+        return {"type": "game"} | lobbies[game_id].status_json | {"players": [ players[p_id].name for p_id in lobbies[game_id].player_ids ]}
+    return UNKNOWN_GAME_ERROR
+
 @app.get("/join/{game_id}")
 async def join_game(game_id: str, name: str | None = None):
     if game_id in lobbies:
@@ -79,18 +101,6 @@ async def create_game(name: str | None = None):
     lobbies[game_id] = manager
     return {"status": "successfully created game", "player_id": player_id, "game_id": game_id}
 
-@app.get("/player/{player_id}")
-async def player_request(player_id: str):
-    if player_id in players:
-        return {"type": "player"} | players[player_id].status_json
-    return UNKNOWN_PLAYER_ERROR
-
-@app.get("/game/{game_id}")
-async def game_request(game_id: str):
-    if game_id in lobbies:
-        return {"type": "game"} | lobbies[game_id].status_json | {"players": [ players[p_id].name for p_id in lobbies[game_id].player_ids ]}
-    return UNKNOWN_GAME_ERROR
-
 @app.get("/leave/{player_id}")
 async def leave_game(player_id: str):
     if not player_id in players:
@@ -102,16 +112,53 @@ async def leave_game(player_id: str):
     if not lobby.player_count:
         del lobbies[lobby_id]
 
+@app.get("/start/{player_id}")
+async def start_game(player_id: str):
+    if player_id not in players:
+        return UNKNOWN_PLAYER_ERROR
+    if lobbies[players[player_id].lobby_id].start():
+        return {"error": "unable to start game"}
+    return {"status": "successfully started game"}
+
 @app.get("/cards/{player_id}")
 async def show_cards(player_id: str):
     if player_id not in players:
         return UNKNOWN_PLAYER_ERROR
-    return
+    return [{c_id: players[player_id].card_dict[c_id].json} for c_id in players[player_id].card_ids]
 
-@app.get("/play_card/{player_id}")
+@app.get("/_skip_switch/{player_id}")
+async def skip_switch(player_id: str):
+    if player_id not in players:
+        return UNKNOWN_PLAYER_ERROR
+    lobbies[players[player_id].lobby_id]._skip_card_switch()
+    return {"status": "successfully skiped switch"}
+
+@app.get("/switch/{player_id}")
+async def switch_cards(player_id: str, card_ids: list[str]):
+    if player_id not in players:
+        return UNKNOWN_PLAYER_ERROR
+    if lobbies[players[player_id].lobby_id].switch_cards(player_id, card_ids):
+        return {"error": "unable to switch cards"}
+    return card_ids
+    return {"status": "successfully switched cards"}
+
+@app.get("/play_card/{player_id}/{card_id}")
 async def play_card(player_id: str, card_id: str):
     if player_id not in players:
         return UNKNOWN_PLAYER_ERROR
     player = players[player_id]
     if card_id not in player.card_ids:
         return UNKNOWN_CARD_ERROR
+    lobby = lobbies[player.lobby_id]
+    if lobby.play_card(player_id, card_id):
+        return {"error": "unable to play card"}
+    return {"status": "successfully played card"}
+
+@app.get("/stitch/{playeyr_id}")
+async def get_stitch(player_id: str):
+    if player_id not in players:
+        return UNKNOWN_PLAYER_ERROR
+    lobby = lobbies[players[player_id].lobby_id]
+    if lobby.state is not LobbyState.GAME:
+        return UNACTIVE_GAME_ERROR
+    return lobby.stitch_json
