@@ -361,7 +361,7 @@ class GameManager:
     @property
     def status_json(self):
         return {
-            "id": self.id,
+            "game_id": self.id,
             "state": self.state.value,
             "round": self.round,
             "player_count": self.player_count,
