@@ -6,6 +6,7 @@ from nanoid import generate  # for lobby ids
 
 UNKNOWN_PLAYER_ERROR = {"error": "Unknown player_id"}
 UNKNOWN_GAME_ERROR = {"error": "Unknown game_id"}
+UNKNOWN_CARD_ERROR = {"error": "Unknown card_id"}
 
 
 def get_player_name(name):
@@ -90,7 +91,27 @@ async def game_request(game_id: str):
         return {"type": "game"} | lobbies[game_id].status_json | {"players": [ players[p_id].name for p_id in lobbies[game_id].player_ids ]}
     return UNKNOWN_GAME_ERROR
 
-@app.get("leave/{player_id}")
+@app.get("/leave/{player_id}")
 async def leave_game(player_id: str):
     if not player_id in players:
         return UNKNOWN_PLAYER_ERROR
+    lobby_id = players[player_id].lobby_id
+    lobby = lobbies[lobby_id]
+    lobby.leave_by_id(player_id)
+    del players[player_id]
+    if not lobby.player_count:
+        del lobbies[lobby_id]
+
+@app.get("/cards/{player_id}")
+async def show_cards(player_id: str):
+    if player_id not in players:
+        return UNKNOWN_PLAYER_ERROR
+    return
+
+@app.get("/play_card/{player_id}")
+async def play_card(player_id: str, card_id: str):
+    if player_id not in players:
+        return UNKNOWN_PLAYER_ERROR
+    player = players[player_id]
+    if card_id not in player.card_ids:
+        return UNKNOWN_CARD_ERROR
