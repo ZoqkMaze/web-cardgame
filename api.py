@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Query
 from classes import *
 import uuid  # for player ids
 from nanoid import generate  # for lobby ids
@@ -57,6 +57,14 @@ lobbies: dict[str, GameManager] = dict()
 async def root():
     return {"info": "Welcome to the Witches API! If you are new, a look at /docs could be helpfull."}
 
+@app.get("/_games")
+async def get_games():
+    return lobbies
+
+@app.get("/_players")
+async def get_players():
+    return players
+
 @app.get("/player/{player_id}")
 async def player_request(player_id: str):
     if player_id in players:
@@ -108,9 +116,11 @@ async def leave_game(player_id: str):
     lobby_id = players[player_id].lobby_id
     lobby = lobbies[lobby_id]
     lobby.leave_by_id(player_id)
-    del players[player_id]
+    players.pop(player_id)
     if not lobby.player_count:
-        del lobbies[lobby_id]
+        lobbies.pop(lobby_id)
+        return {"status": "deleted game"}
+    return {"status": "successfully left game"}
 
 @app.get("/start/{player_id}")
 async def start_game(player_id: str):
@@ -133,13 +143,12 @@ async def skip_switch(player_id: str):
     lobbies[players[player_id].lobby_id]._skip_card_switch()
     return {"status": "successfully skiped switch"}
 
-@app.get("/switch/{player_id}")
-async def switch_cards(player_id: str, card_ids: list[str]):
+@app.get("/switch/{player_id}/")
+async def switch_cards(player_id: str, card: list[str] = Query(default=[])):
     if player_id not in players:
         return UNKNOWN_PLAYER_ERROR
-    if lobbies[players[player_id].lobby_id].switch_cards(player_id, card_ids):
+    if lobbies[players[player_id].lobby_id].switch_cards(player_id, card):
         return {"error": "unable to switch cards"}
-    return card_ids
     return {"status": "successfully switched cards"}
 
 @app.get("/play_card/{player_id}/{card_id}")
@@ -154,7 +163,7 @@ async def play_card(player_id: str, card_id: str):
         return {"error": "unable to play card"}
     return {"status": "successfully played card"}
 
-@app.get("/stitch/{playeyr_id}")
+@app.get("/stitch/{player_id}")
 async def get_stitch(player_id: str):
     if player_id not in players:
         return UNKNOWN_PLAYER_ERROR
