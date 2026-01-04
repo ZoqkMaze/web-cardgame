@@ -73,6 +73,7 @@ app = FastAPI()
 players: dict[str, WebUser] = dict()
 
 lobbies: dict[str, GameManager] = dict()
+versions: dict[str, int] = dict()  # counter for changes -> client knows if changes did happen
 
 
 from fastapi.middleware.cors import CORSMiddleware  # todo: remove after testing
@@ -108,7 +109,7 @@ async def player_request(player_id: str):
 @app.get("/game/{game_id}")
 async def game_request(game_id: str):
     if game_id in lobbies:
-        return return_success({"type": "game"} | lobbies[game_id].status_json | {"players": [ players[p_id].name for p_id in lobbies[game_id].player_ids ]})
+        return return_success({"type": "game"} | {"version": versions[game_id]} | lobbies[game_id].status_json | {"players": [ players[p_id].name for p_id in lobbies[game_id].player_ids ]})
     return UNKNOWN_GAME_ERROR
 
 @app.get("/join/{game_id}")
@@ -121,7 +122,8 @@ async def join_game(game_id: str, name: str | None = None):
             return JOIN_LOBBY_ERROR
         new_player.lobby_id = game_id
         players[new_id] = new_player
-        return return_success({"message": "successfully joined game", "player_id": new_id, "game_id": game_id})
+        versions[game_id] += 1
+        return return_success_message("successfully joined game") | {"player_id": new_id, "game_id": game_id}
     return UNKNOWN_GAME_ERROR
 
 @app.get("/create")
@@ -141,6 +143,7 @@ async def create_game(name: str | None = None):
     player.lobby_id = game_id
     players[player_id] = player
     lobbies[game_id] = manager
+    versions[game_id] = 0
     return return_success({"message": "successfully created game", "player_id": player_id, "game_id": game_id})
 
 @app.get("/leave/{player_id}")
@@ -151,8 +154,10 @@ async def leave_game(player_id: str):
     lobby = lobbies[lobby_id]
     lobby.leave_by_id(player_id)
     players.pop(player_id)
+    versions[lobby_id] += 1
     if not lobby.player_count:
         lobbies.pop(lobby_id)
+        versions.pop(lobby_id)
         return return_success_message("deleted game")
     return return_success_message("successfully left game")
 
@@ -160,8 +165,10 @@ async def leave_game(player_id: str):
 async def start_game(player_id: str):
     if player_id not in players:
         return UNKNOWN_PLAYER_ERROR
-    if lobbies[players[player_id].lobby_id].start():
+    lobby_id = players[player_id].lobby_id
+    if lobbies[lobby_id].start():
         return START_LOBBY_ERROR
+    versions[lobby_id] += 1
     return return_success_message("successfully started game")
 
 @app.get("/cards/{player_id}")
@@ -174,15 +181,19 @@ async def show_cards(player_id: str):
 async def skip_switch(player_id: str):
     if player_id not in players:
         return UNKNOWN_PLAYER_ERROR
-    lobbies[players[player_id].lobby_id]._skip_card_switch()
+    lobby_id = players[player_id].lobby_id
+    lobbies[lobby_id]._skip_card_switch()
+    versions[lobby_id] += 1
     return return_success_message("successfully skiped switch")
 
 @app.get("/switch/{player_id}/")
 async def switch_cards(player_id: str, card: list[str] = Query(default=[])):
     if player_id not in players:
         return UNKNOWN_PLAYER_ERROR
-    if lobbies[players[player_id].lobby_id].switch_cards(player_id, card):
+    lobby_id = players[player_id].lobby_id
+    if lobbies[lobby_id].switch_cards(player_id, card):
         return SWITCH_CARD_ERROR
+    versions[lobby_id] += 1
     return return_success_message("successfully switched cards")
 
 @app.get("/play_card/{player_id}/{card_id}")
@@ -195,6 +206,7 @@ async def play_card(player_id: str, card_id: str):
     lobby = lobbies[player.lobby_id]
     if lobby.play_card(player_id, card_id):
         return PLAY_CARD_ERROR
+    versions[lobby.id] += 1
     return return_success_message("successfully played card")
 
 @app.get("/stitch/{player_id}")
@@ -204,4 +216,5 @@ async def get_stitch(player_id: str):
     lobby = lobbies[players[player_id].lobby_id]
     if lobby.state is not LobbyState.GAME:
         return INACTIVE_GAME_ERROR
+    versions[lobby.id] += 1
     return return_success(lobby.stitch_json)
