@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Query
-from classes import *
+from witches import *
 import uuid  # for player ids
 from nanoid import generate  # for lobby ids
 
