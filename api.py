@@ -3,6 +3,8 @@ from classes import *
 import uuid  # for player ids
 from nanoid import generate  # for lobby ids
 
+# todo: remove players and lobbies or ensure lobby quit
+
 # join
     # show lobby
 # start
@@ -12,11 +14,31 @@ from nanoid import generate  # for lobby ids
     # show stitches
 # restart
 
+def return_error(response):
+    return {"success": False} | response
 
-UNKNOWN_PLAYER_ERROR = {"error": "Unknown player_id"}
-UNKNOWN_GAME_ERROR = {"error": "Unknown game_id"}
-UNKNOWN_CARD_ERROR = {"error": "Unknown card_id"}
-UNACTIVE_GAME_ERROR = {"error": "Game is not active"}
+def return_error_message(msg):
+    return return_error({"message": msg})
+
+def return_success(response):
+    return {"success": True} | response
+
+def return_success_message(msg):
+    return return_success({"message": msg})
+
+
+UNKNOWN_PLAYER_ERROR = return_error_message("unknown player")
+UNKNOWN_GAME_ERROR = return_error_message("unknown game")
+UNKNOWN_CARD_ERROR = return_error_message("unknown card")
+
+INACTIVE_GAME_ERROR = return_error_message("game is inactive")
+
+JOIN_LOBBY_ERROR = return_error_message("unable to join lobby")
+CREATE_LOBBY_ERROR = return_error_message("unable to create lobby")
+START_LOBBY_ERROR = return_error_message("unable to start lobby")
+
+SWITCH_CARD_ERROR = return_error_message("unable to switch cards")
+PLAY_CARD_ERROR = return_error_message("unable to play card")
 
 
 def get_player_name(name):
@@ -53,28 +75,40 @@ players: dict[str, WebUser] = dict()
 lobbies: dict[str, GameManager] = dict()
 
 
+from fastapi.middleware.cors import CORSMiddleware  # todo: remove after testing
+# todo: REMOVE AFTER TESTING
+# Enable CORS for frontend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allow all origins
+    allow_credentials=True,
+    allow_methods=["*"],  # Allow all methods
+    allow_headers=["*"],  # Allow all headers
+)
+
+
 @app.get("/")
 async def root():
-    return {"info": "Welcome to the Witches API! If you are new, a look at /docs could be helpfull."}
+    return return_success_message("Welcome to the Witches API! If you are new, a look at /docs could be helpfull.")
 
 @app.get("/_games")
 async def get_games():
-    return lobbies
+    return return_success(lobbies)
 
 @app.get("/_players")
 async def get_players():
-    return players
+    return return_success(players)
 
 @app.get("/player/{player_id}")
 async def player_request(player_id: str):
     if player_id in players:
-        return {"type": "player"} | players[player_id].status_json
+        return return_success({"type": "player"} | players[player_id].status_json)
     return UNKNOWN_PLAYER_ERROR
 
 @app.get("/game/{game_id}")
 async def game_request(game_id: str):
     if game_id in lobbies:
-        return {"type": "game"} | lobbies[game_id].status_json | {"players": [ players[p_id].name for p_id in lobbies[game_id].player_ids ]}
+        return return_success({"type": "game"} | lobbies[game_id].status_json | {"players": [ players[p_id].name for p_id in lobbies[game_id].player_ids ]})
     return UNKNOWN_GAME_ERROR
 
 @app.get("/join/{game_id}")
@@ -84,10 +118,10 @@ async def join_game(game_id: str, name: str | None = None):
         new_name = get_player_name(name)
         new_player = WebUser(new_id, new_name)
         if lobbies[game_id].join(new_player):
-            return {"error": "unable to join lobby"}
+            return JOIN_LOBBY_ERROR
         new_player.lobby_id = game_id
         players[new_id] = new_player
-        return {"status": "successfully joined game", "player_id": new_id, "game_id": game_id}
+        return return_success({"message": "successfully joined game", "player_id": new_id, "game_id": game_id})
     return UNKNOWN_GAME_ERROR
 
 @app.get("/create")
@@ -102,12 +136,12 @@ async def create_game(name: str | None = None):
     manager = GameManager(game_id)
 
     if manager.join(player):
-        return {"error": "unable to create lobby"}
+        return CREATE_LOBBY_ERROR
     
     player.lobby_id = game_id
     players[player_id] = player
     lobbies[game_id] = manager
-    return {"status": "successfully created game", "player_id": player_id, "game_id": game_id}
+    return return_success({"message": "successfully created game", "player_id": player_id, "game_id": game_id})
 
 @app.get("/leave/{player_id}")
 async def leave_game(player_id: str):
@@ -119,37 +153,37 @@ async def leave_game(player_id: str):
     players.pop(player_id)
     if not lobby.player_count:
         lobbies.pop(lobby_id)
-        return {"status": "deleted game"}
-    return {"status": "successfully left game"}
+        return return_success_message("deleted game")
+    return return_success_message("successfully left game")
 
 @app.get("/start/{player_id}")
 async def start_game(player_id: str):
     if player_id not in players:
         return UNKNOWN_PLAYER_ERROR
     if lobbies[players[player_id].lobby_id].start():
-        return {"error": "unable to start game"}
-    return {"status": "successfully started game"}
+        return START_LOBBY_ERROR
+    return return_success_message("successfully started game")
 
 @app.get("/cards/{player_id}")
 async def show_cards(player_id: str):
     if player_id not in players:
         return UNKNOWN_PLAYER_ERROR
-    return [{c_id: players[player_id].card_dict[c_id].json} for c_id in players[player_id].card_ids]
+    return return_success({"cards": [{c_id: players[player_id].card_dict[c_id].json} for c_id in players[player_id].card_ids]})
 
 @app.get("/_skip_switch/{player_id}")
 async def skip_switch(player_id: str):
     if player_id not in players:
         return UNKNOWN_PLAYER_ERROR
     lobbies[players[player_id].lobby_id]._skip_card_switch()
-    return {"status": "successfully skiped switch"}
+    return return_success_message("successfully skiped switch")
 
 @app.get("/switch/{player_id}/")
 async def switch_cards(player_id: str, card: list[str] = Query(default=[])):
     if player_id not in players:
         return UNKNOWN_PLAYER_ERROR
     if lobbies[players[player_id].lobby_id].switch_cards(player_id, card):
-        return {"error": "unable to switch cards"}
-    return {"status": "successfully switched cards"}
+        return SWITCH_CARD_ERROR
+    return return_success_message("successfully switched cards")
 
 @app.get("/play_card/{player_id}/{card_id}")
 async def play_card(player_id: str, card_id: str):
@@ -160,8 +194,8 @@ async def play_card(player_id: str, card_id: str):
         return UNKNOWN_CARD_ERROR
     lobby = lobbies[player.lobby_id]
     if lobby.play_card(player_id, card_id):
-        return {"error": "unable to play card"}
-    return {"status": "successfully played card"}
+        return PLAY_CARD_ERROR
+    return return_success_message("successfully played card")
 
 @app.get("/stitch/{player_id}")
 async def get_stitch(player_id: str):
@@ -169,5 +203,5 @@ async def get_stitch(player_id: str):
         return UNKNOWN_PLAYER_ERROR
     lobby = lobbies[players[player_id].lobby_id]
     if lobby.state is not LobbyState.GAME:
-        return UNACTIVE_GAME_ERROR
-    return lobby.stitch_json
+        return INACTIVE_GAME_ERROR
+    return return_success(lobby.stitch_json)
