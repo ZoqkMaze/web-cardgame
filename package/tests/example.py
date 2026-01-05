@@ -1,4 +1,4 @@
-from classes import *
+from witches import *
 
 
 def show_cards(player: Player):

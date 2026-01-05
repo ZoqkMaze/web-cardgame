@@ -1,5 +1,5 @@
 import unittest
-from classes import *
+from witches import *
 
 
 class TestCard(unittest.TestCase):
