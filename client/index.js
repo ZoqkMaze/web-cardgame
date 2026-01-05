@@ -11,8 +11,15 @@ createButton = document.getElementById("createButton");
 
 localStorage.clear();
 
+function nameParam() {
+    if (nameInput.value.length > 0) {
+        return "?name="+nameInput.value
+    }
+    return ""
+}
+
 function createLobby() {
-    fetch(apiUrl+"create?name="+nameInput.value)
+    fetch(apiUrl+"create"+nameParam())
         .then(async response => {
             const body = await response.json();
             if (!body.success) {
@@ -31,7 +38,7 @@ function joinLobby() {
     // random public lobby or specific lobby via code
     lobbyId = lobbyInput.value;
     if (lobbyId.length > 1) {
-        fetch(apiUrl+"join/"+lobbyId+"?name="+nameInput.value)
+        fetch(apiUrl+"join/"+lobbyId+nameParam())
         .then(async response => {
             const body = await response.json();
             if (!body.success) {
