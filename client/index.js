@@ -9,6 +9,8 @@ nameInput = document.getElementById("nameInput");
 joinButton = document.getElementById("joinButton");
 createButton = document.getElementById("createButton");
 
+localStorage.clear();
+
 function createLobby() {
     fetch(apiUrl+"create?name="+nameInput.value)
         .then(async response => {

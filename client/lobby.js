@@ -15,28 +15,27 @@ const lobby = {
     round: 0,
 }
 
-playerList = document.getElementById("playerList");
-lobbyStatusText = document.getElementById("gameStatus");
+let playerList = document.getElementById("playerList");
+let lobbyStatusText = document.getElementById("gameStatus");
 
-function needUpdate() {
-    let result = false;
-    fetch(apiURL+"version/"+lobbyID)
-        .then(response => {
-            if (!response.success) {
-                return;
+async function needUpdate() {
+    return fetch(apiURL+"version/"+lobbyID)
+        .then(async response => {
+            const body = await response.json()
+            if (!body.success) {
+                return false;
             }
-            if (lobby.version == response.version) {
-                return;
+            if (lobby.version == body.version) {
+                return false;
             } 
-            lobby.version = response.version;
-            result = true;
+            lobby.version = body.version;
+            return true;
         });
-    return result;
 }
 
 function renderLobbyData() {
     playerList.innerHTML = "";
-    playerList.forEach(element => {
+    lobby.players.forEach( (element) => {
         li = document.createElement("li")
         li.textContent = element;
         playerList.appendChild(li);
@@ -44,18 +43,20 @@ function renderLobbyData() {
     lobbyStatusText.textContent = "state: " + lobby.state
 }
 
-function updateLobby() {
-    if (!needUpdate()) {
+async function updateLobby() {
+    if (!await needUpdate()) {
+        console.log("DONT NEED!");
         return
     }
-    fetch(apiURL+"lobby/"+lobbyID)
-        .then(response => {
-            if (!response.success) {
+    await fetch(apiURL+"lobby/"+lobbyID)
+        .then(async response => {
+            const body = await response.json()
+            if (!body.success) {
                 return
             }
-            lobby.players = response.players;
-            lobby.state = response.state;
-            lobby.round = response.round;
+            lobby.players = body.players;
+            lobby.state = body.state;
+            lobby.round = body.round;
         });
     renderLobbyData();
 }

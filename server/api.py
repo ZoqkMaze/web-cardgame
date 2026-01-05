@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Query
-from witches import *
+from witches import * # type: ignore
 import uuid  # for player ids
 from nanoid import generate  # for lobby ids
 
@@ -149,7 +149,7 @@ async def create_game(name: str | None = None):
     player.lobby_id = game_id
     players[player_id] = player
     lobbies[game_id] = manager
-    versions[game_id] = 0
+    versions[game_id] = 1
     return return_success({"message": "successfully created game", "player_id": player_id, "game_id": game_id})
 
 @app.get("/leave/{player_id}")
