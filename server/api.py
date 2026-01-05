@@ -100,13 +100,19 @@ async def get_games():
 async def get_players():
     return return_success(players)
 
+@app.get("/version/{game_id}")
+async def get_version(game_id: str):
+    if game_id not in versions:
+        return UNKNOWN_GAME_ERROR
+    return return_success({"version": versions[game_id]})
+
 @app.get("/player/{player_id}")
 async def player_request(player_id: str):
     if player_id in players:
         return return_success({"type": "player"} | players[player_id].status_json)
     return UNKNOWN_PLAYER_ERROR
 
-@app.get("/game/{game_id}")
+@app.get("/lobby/{game_id}")
 async def game_request(game_id: str):
     if game_id in lobbies:
         return return_success({"type": "game"} | {"version": versions[game_id]} | lobbies[game_id].status_json | {"players": [ players[p_id].name for p_id in lobbies[game_id].player_ids ]})
