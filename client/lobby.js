@@ -15,8 +15,9 @@ const lobby = {
     round: 0,
 }
 
-let playerList = document.getElementById("playerList");
+let playerListElement = document.getElementById("playerList");
 let lobbyStatusText = document.getElementById("lobbyStatus");
+document.getElementById("lobbyId").textContent = "lobby id:" + lobbyID;
 
 async function needUpdate() {
     return fetch(apiURL+"version/"+lobbyID)
@@ -34,11 +35,11 @@ async function needUpdate() {
 }
 
 function renderLobbyData() {
-    playerList.innerHTML = "";
+    playerListElement.innerHTML = "";
     lobby.players.forEach( (element) => {
         li = document.createElement("li")
         li.textContent = element;
-        playerList.appendChild(li);
+        playerListElement.appendChild(li);
     });
     lobbyStatusText.textContent = "state: " + lobby.state
 }

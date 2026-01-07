@@ -22,6 +22,7 @@ function createLobby() {
     fetch(apiUrl+"create"+nameParam())
         .then(async response => {
             const body = await response.json();
+            console.log(body);
             if (!body.success) {
                 errorText.textContent = body.message;
                 return;
@@ -29,8 +30,9 @@ function createLobby() {
             infoText.textContent = body.message;
             localStorage.setItem("playerId", body.player_id);
             localStorage.setItem("lobbyId", body.lobby_id);
+
             // redirect to lobby
-            window.location.assign("lobby.html");
+            // window.location.assign("lobby.html");
         });
 }
 
