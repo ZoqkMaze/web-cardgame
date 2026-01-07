@@ -28,10 +28,10 @@ def return_success_message(msg):
 
 
 UNKNOWN_PLAYER_ERROR = return_error_message("unknown player")
-UNKNOWN_GAME_ERROR = return_error_message("unknown game")
+UNKNOWN_GAME_ERROR = return_error_message("unknown lobby")
 UNKNOWN_CARD_ERROR = return_error_message("unknown card")
 
-INACTIVE_GAME_ERROR = return_error_message("game is inactive")
+INACTIVE_GAME_ERROR = return_error_message("lobby is inactive")
 
 JOIN_LOBBY_ERROR = return_error_message("unable to join lobby")
 CREATE_LOBBY_ERROR = return_error_message("unable to create lobby")
@@ -47,7 +47,7 @@ def get_player_name(name):
 def create_player_id():
     return str(uuid.uuid1())
 
-def create_game_id():
+def create_lobby_id():
     return generate(size=8)
 
 
@@ -63,7 +63,7 @@ class WebUser(Player):
         return {
             "player_id": self.id,
             "name": self.name,
-            "game_id": self.lobby_id,
+            "lobby_id": self.lobby_id,
             "total_points": self.total_game_score,
         }
 
@@ -92,19 +92,19 @@ app.add_middleware(
 async def root():
     return return_success_message("Welcome to the Witches API! If you are new, a look at /docs could be helpfull.")
 
-@app.get("/_games")
-async def get_games():
+@app.get("/_lobbys")
+async def get_lobbys():
     return return_success(lobbies)
 
 @app.get("/_players")
 async def get_players():
     return return_success(players)
 
-@app.get("/version/{game_id}")
-async def get_version(game_id: str):
-    if game_id not in versions:
+@app.get("/version/{lobby_id}")
+async def get_version(lobby_id: str):
+    if lobby_id not in versions:
         return UNKNOWN_GAME_ERROR
-    return return_success({"version": versions[game_id]})
+    return return_success({"version": versions[lobby_id]})
 
 @app.get("/player/{player_id}")
 async def player_request(player_id: str):
@@ -112,48 +112,48 @@ async def player_request(player_id: str):
         return return_success({"type": "player"} | players[player_id].status_json)
     return UNKNOWN_PLAYER_ERROR
 
-@app.get("/lobby/{game_id}")
-async def game_request(game_id: str):
-    if game_id in lobbies:
-        return return_success({"type": "game"} | {"version": versions[game_id]} | lobbies[game_id].status_json | {"players": [ players[p_id].name for p_id in lobbies[game_id].player_ids ]})
+@app.get("/lobby/{lobby_id}")
+async def lobby_request(lobby_id: str):
+    if lobby_id in lobbies:
+        return return_success({"type": "lobby"} | {"version": versions[lobby_id]} | lobbies[lobby_id].status_json | {"players": [ players[p_id].name for p_id in lobbies[lobby_id].player_ids ]})
     return UNKNOWN_GAME_ERROR
 
-@app.get("/join/{game_id}")
-async def join_game(game_id: str, name: str | None = None):
-    if game_id in lobbies:
+@app.get("/join/{lobby_id}")
+async def join_lobby(lobby_id: str, name: str | None = None):
+    if lobby_id in lobbies:
         new_id = create_player_id()
         new_name = get_player_name(name)
         new_player = WebUser(new_id, new_name)
-        if lobbies[game_id].join(new_player):
+        if lobbies[lobby_id].join(new_player):
             return JOIN_LOBBY_ERROR
-        new_player.lobby_id = game_id
+        new_player.lobby_id = lobby_id
         players[new_id] = new_player
-        versions[game_id] += 1
-        return return_success_message("successfully joined game") | {"player_id": new_id, "game_id": game_id}
+        versions[lobby_id] += 1
+        return return_success_message("successfully joined lobby") | {"player_id": new_id, "lobby_id": lobby_id}
     return UNKNOWN_GAME_ERROR
 
 @app.get("/create")
-async def create_game(name: str | None = None):
-    game_id = create_game_id()
+async def create_lobby(name: str | None = None):
+    lobby_id = create_lobby_id()
     player_id = create_player_id()
-    while game_id in lobbies or player_id in players:
-        game_id = create_game_id()
+    while lobby_id in lobbies or player_id in players:
+        lobby_id = create_lobby_id()
         player_id = create_player_id()
 
     player = WebUser(player_id, get_player_name(name))
-    manager = GameManager(game_id)
+    manager = GameManager(lobby_id)
 
     if manager.join(player):
         return CREATE_LOBBY_ERROR
     
-    player.lobby_id = game_id
+    player.lobby_id = lobby_id
     players[player_id] = player
-    lobbies[game_id] = manager
-    versions[game_id] = 1
-    return return_success({"message": "successfully created game", "player_id": player_id, "game_id": game_id})
+    lobbies[lobby_id] = manager
+    versions[lobby_id] = 1
+    return return_success({"message": "successfully created lobby", "player_id": player_id, "lobby_id": lobby_id})
 
 @app.get("/leave/{player_id}")
-async def leave_game(player_id: str):
+async def leave_lobby(player_id: str):
     if not player_id in players:
         return UNKNOWN_PLAYER_ERROR
     lobby_id = players[player_id].lobby_id
@@ -164,18 +164,18 @@ async def leave_game(player_id: str):
     if not lobby.player_count:
         lobbies.pop(lobby_id)
         versions.pop(lobby_id)
-        return return_success_message("deleted game")
-    return return_success_message("successfully left game")
+        return return_success_message("deleted lobby")
+    return return_success_message("successfully left lobby")
 
 @app.get("/start/{player_id}")
-async def start_game(player_id: str):
+async def start_lobby(player_id: str):
     if player_id not in players:
         return UNKNOWN_PLAYER_ERROR
     lobby_id = players[player_id].lobby_id
     if lobbies[lobby_id].start():
         return START_LOBBY_ERROR
     versions[lobby_id] += 1
-    return return_success_message("successfully started game")
+    return return_success_message("successfully started lobby")
 
 @app.get("/cards/{player_id}")
 async def show_cards(player_id: str):

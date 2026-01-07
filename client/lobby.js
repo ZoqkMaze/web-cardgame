@@ -1,6 +1,6 @@
 // show status
-// start game
-// monitore game status and display change
+// start lobby
+// monitore lobby status and display change
 // when should the client update info? or should the server inform about changes?
 
 const apiURL = "http://127.0.0.1:8000/"
@@ -16,7 +16,7 @@ const lobby = {
 }
 
 let playerList = document.getElementById("playerList");
-let lobbyStatusText = document.getElementById("gameStatus");
+let lobbyStatusText = document.getElementById("lobbyStatus");
 
 async function needUpdate() {
     return fetch(apiURL+"version/"+lobbyID)

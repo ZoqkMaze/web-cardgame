@@ -28,7 +28,7 @@ function createLobby() {
             }
             infoText.textContent = body.message;
             localStorage.setItem("playerId", body.player_id);
-            localStorage.setItem("lobbyId", body.game_id);
+            localStorage.setItem("lobbyId", body.lobby_id);
             // redirect to lobby
             window.location.assign("lobby.html");
         });
@@ -47,7 +47,7 @@ function joinLobby() {
             }
             infoText.textContent = body.message;
             localStorage.setItem("playerId", body.player_id);
-            localStorage.setItem("gameId", body.game_id);
+            localStorage.setItem("lobbyId", body.lobby_id);
             // redirect to lobby
             window.location.assign("lobby.html");
         })

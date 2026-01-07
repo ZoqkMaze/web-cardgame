@@ -352,8 +352,8 @@ class GameManager:
         if c is not Color.BLANCK
     ] + [Card(Color.BLANCK, Card.MIN_RANK) for c in Color if c is not Color.BLANCK]
 
-    def __init__(self, game_id=""):
-        self.__id = game_id
+    def __init__(self, lobby_id=""):
+        self.__id = lobby_id
         self.__players: list[Player] = []
         self.__current_player = 0
         self.__state = LobbyState.JOIN
@@ -369,7 +369,7 @@ class GameManager:
     @property
     def status_json(self):
         return {
-            "game_id": self.id,
+            "lobby_id": self.id,
             "state": self.state.value,
             "round": self.round,
             "player_count": self.player_count,
