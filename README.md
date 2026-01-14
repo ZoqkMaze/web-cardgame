@@ -5,7 +5,7 @@ It implements:
   - an api for playing the game
   - a prototype web-site to play the game in browser
 
-Althought it might change in future, the package and the api are basicly finished. Just the web frontend need huge improvements.
+Althought it might change in future, the package and the api are basicly finished. Just the web frontend needs huge improvements.
 
 ---
 
