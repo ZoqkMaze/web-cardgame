@@ -92,7 +92,7 @@ app.add_middleware(
 async def root():
     return return_success_message("Welcome to the Witches API! If you are new, a look at /docs could be helpfull.")
 
-@app.get("/_lobbys")
+@app.get("/_lobbies")
 async def get_lobbys():
     return return_success(lobbies)
 

@@ -32,7 +32,7 @@ function createLobby() {
             localStorage.setItem("lobbyId", body.lobby_id);
 
             // redirect to lobby
-            // window.location.assign("lobby.html");
+            window.location.assign("lobby.html");
         });
 }
 

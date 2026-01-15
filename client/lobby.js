@@ -17,7 +17,8 @@ const lobby = {
 
 let playerListElement = document.getElementById("playerList");
 let lobbyStatusText = document.getElementById("lobbyStatus");
-document.getElementById("lobbyId").textContent = "lobby id:" + lobbyID;
+document.getElementById("lobbyId").textContent = "lobby id: " + lobbyID;
+let startButton = document.getElementById("startButton");
 
 async function needUpdate() {
     return fetch(apiURL+"version/"+lobbyID)
@@ -46,12 +47,12 @@ function renderLobbyData() {
 
 async function updateLobby() {
     if (!await needUpdate()) {
-        console.log("DONT NEED!");
+        // console.log("DONT NEED!");
         return
     }
     await fetch(apiURL+"lobby/"+lobbyID)
         .then(async response => {
-            const body = await response.json()
+            const body = await response.json();
             if (!body.success) {
                 return
             }
@@ -62,4 +63,19 @@ async function updateLobby() {
     renderLobbyData();
 }
 
+async function startGame() {
+    console.log("start game");
+    await fetch(apiURL + "start/"+playerID)
+        .then(async response => {
+            const body = await response.json();
+            if (body.success) {
+                console.log("successfully started game");
+            } else {
+                console.log("error when starting game");
+            }
+        });
+}
+
 setInterval(updateLobby, 1000);
+
+startButton.addEventListener("click", startGame);
