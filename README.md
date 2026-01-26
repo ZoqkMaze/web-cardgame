@@ -10,6 +10,7 @@ Althought it might change in future, the package and the api are basicly finishe
 ---
 
 ## witches package
+First, you need to install the local package. Therefore, run `pip install -e package/`. Now, the package should be available and always up to date.
 The python package is (hopfully enough) tested (currently 90% test coverage).
 A small example of a cli implementation can be found at `package/tests/example.py`.
 
