@@ -17,10 +17,13 @@ A small example of a cli implementation can be found at `package/tests/example.p
 ---
 
 ## witches API
-The API uses `python` and `fastapi`.
-To run it in development, first install `fastapi` via `pip install "fastapi[standard]"` and then execute `fastapi dev server/api.py`. After that, it should be accessable on `http://127.0.0.1:8000`
+The API uses `python` and `fastapi` as well as `nanoid`.
+To run it in development, first install `fastapi` via `pip install "fastapi[standard]"` and `nanoid` using `pip install nanoid`. Then execute `fastapi dev server/api.py`. After that, it should be accessable on `http://127.0.0.1:8000`
 
 ---
 
 ## web frontend
 The web frontend is currently in development.
+To access it under `localhost:8080`, you can use the build-in python `http.server`. Simply, run `python -m http.server 8080` in the client directory.
+Feel free to use any other server - but mind the browser cache.
+Because the browsers localStorage is used, it is not possible to test multiple clients in the same browser. Therfore, use different browsers or incognito tabs for each user.
